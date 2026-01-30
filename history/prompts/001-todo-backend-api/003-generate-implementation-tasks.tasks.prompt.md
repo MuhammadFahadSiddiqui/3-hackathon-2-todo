@@ -1,15 +1,15 @@
 ---
 id: 003
-title: Generate Implementation Tasks for Backend API
+title: Generate Implementation Tasks
 stage: tasks
-date: 2026-01-09
+date: 2026-01-10
 surface: agent
 model: claude-opus-4-5-20251101
 feature: 001-todo-backend-api
 branch: 001-todo-backend-api
 user: fahad
 command: /sp.tasks
-labels: ["tasks", "backend", "api", "implementation", "checklist"]
+labels: ["tasks", "backend", "fastapi", "implementation", "crud"]
 links:
   spec: specs/001-todo-backend-api/spec.md
   ticket: null
@@ -25,51 +25,55 @@ tests:
 
 /sp.tasks
 
-(No additional arguments - generated tasks from existing design documents)
+(No additional arguments provided - generated tasks from spec.md and plan.md)
 
 ## Response snapshot
 
-Generated comprehensive implementation task list with 24 tasks organized across 8 phases:
+Generated comprehensive tasks.md for Core Todo Backend API with:
 
-**Task Distribution**:
-- Phase 1 (Setup): 5 tasks
-- Phase 2 (Foundational): 4 tasks
-- Phase 3 (US1+US2 Create/List): 4 tasks
-- Phase 4 (US3 Get Single): 2 tasks
-- Phase 5 (US4 Update): 2 tasks
-- Phase 6 (US5 Delete): 2 tasks
-- Phase 7 (US6 Complete): 2 tasks
-- Phase 8 (Polish): 3 tasks
+**Total Tasks**: 38 tasks across 9 phases
 
-**User Story Mapping**:
-- US1+US2 (P1): POST and GET /tasks - combined as MVP foundation
-- US3 (P2): GET /tasks/{id}
-- US4 (P2): PUT /tasks/{id}
-- US5 (P2): DELETE /tasks/{id}
-- US6 (P3): PATCH /tasks/{id}/complete
+**Task Distribution by Phase**:
+- Phase 1 (Setup): 4 tasks (T001-T004)
+- Phase 2 (Foundational): 14 tasks (T005-T018)
+- Phase 3 (US1 - Create Task): 4 tasks (T019-T022)
+- Phase 4 (US2 - List Tasks): 2 tasks (T023-T024)
+- Phase 5 (US3 - Get Task): 2 tasks (T025-T026)
+- Phase 6 (US4 - Update Task): 3 tasks (T027-T029)
+- Phase 7 (US5 - Delete Task): 2 tasks (T030-T031)
+- Phase 8 (US6 - Complete Task): 3 tasks (T032-T034)
+- Phase 9 (Polish): 4 tasks (T035-T038)
 
-**Parallel Opportunities**: 6 tasks marked [P] for parallel execution
+**User Story Task Counts**:
+- US1 (P1): 4 tasks
+- US2 (P1): 2 tasks
+- US3 (P2): 2 tasks
+- US4 (P2): 3 tasks
+- US5 (P2): 2 tasks
+- US6 (P3): 3 tasks
 
-**Format Validation**: All 24 tasks follow strict checklist format with:
-- Checkbox prefix
-- Task ID (T001-T024)
-- [P] markers where applicable
-- [US#] labels for user story phases
-- Explicit file paths
+**Parallel Opportunities**: 12 tasks marked [P] for parallel execution
 
-**MVP Scope**: Phases 1-3 deliver functional create/list loop
+**MVP Scope**: User Stories 1 + 2 (Phases 1-4, Tasks T001-T024)
+
+**Format Validation**: All 38 tasks follow checklist format with:
+- Checkbox prefix `- [ ]`
+- Task ID (T001-T038)
+- [P] marker where applicable
+- [USn] story label for user story phases
+- Exact file paths in descriptions
 
 ## Outcome
 
-- ✅ Impact: Complete executable task list ready for implementation
-- 🧪 Tests: N/A (task generation phase)
-- 📁 Files: tasks.md (created)
-- 🔁 Next prompts: /sp.implement or begin executing tasks manually
-- 🧠 Reflection: Design documents provided clear mapping; US1+US2 combined for MVP efficiency
+- Impact: Complete implementation roadmap ready for execution
+- Tests: N/A (task generation phase)
+- Files: 1 file created (tasks.md)
+- Next prompts: /sp.implement to begin task execution
+- Reflection: Tasks organized by user story enable independent testing; MVP clearly defined at Phase 4 checkpoint
 
 ## Evaluation notes (flywheel)
 
 - Failure modes observed: None
-- Graders run and results (PASS/FAIL): Format validation - PASS (24/24 tasks valid)
-- Prompt variant (if applicable): Standard /sp.tasks with no arguments
-- Next experiment (smallest change to try): Track task completion rate and time per task
+- Graders run and results (PASS/FAIL): Format validation PASS - all tasks follow required checklist format
+- Prompt variant (if applicable): N/A
+- Next experiment (smallest change to try): N/A - proceed to implementation

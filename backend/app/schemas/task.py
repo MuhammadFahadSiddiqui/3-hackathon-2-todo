@@ -1,49 +1,49 @@
-"""Pydantic request/response schemas for Task API."""
-
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, field_validator
 
 
 class TaskCreate(BaseModel):
     """Schema for creating a new task."""
 
-    title: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = Field(None, max_length=2000)
+    title: str
+    description: Optional[str] = None
 
     @field_validator("title")
     @classmethod
-    def title_not_whitespace(cls, v: str) -> str:
-        """Validate that title is not empty or whitespace only."""
-        if not v.strip():
-            raise ValueError("Title cannot be empty or whitespace only")
+    def title_must_not_be_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Title cannot be empty")
+        if len(v) > 500:
+            raise ValueError("Title must be 500 characters or less")
         return v.strip()
 
 
 class TaskUpdate(BaseModel):
     """Schema for updating an existing task."""
 
-    title: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = Field(None, max_length=2000)
+    title: str
+    description: Optional[str] = None
 
     @field_validator("title")
     @classmethod
-    def title_not_whitespace(cls, v: str) -> str:
-        """Validate that title is not empty or whitespace only."""
-        if not v.strip():
-            raise ValueError("Title cannot be empty or whitespace only")
+    def title_must_not_be_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Title cannot be empty")
+        if len(v) > 500:
+            raise ValueError("Title must be 500 characters or less")
         return v.strip()
 
 
 class TaskResponse(BaseModel):
-    """Schema for task responses."""
+    """Schema for task response."""
 
-    id: str
+    id: int
     user_id: str
     title: str
     description: Optional[str]
-    completed: bool
+    is_completed: bool
     created_at: datetime
-    completed_at: Optional[datetime]
+    updated_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = {"from_attributes": True}

@@ -1,36 +1,29 @@
-"""Application configuration loaded from environment variables."""
-
+from functools import lru_cache
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
 
 
 class Settings:
-    """Application settings loaded from environment."""
+    """Application settings loaded from environment variables."""
 
     def __init__(self):
-        self.DATABASE_URL: str = os.getenv("DATABASE_URL", "")
-        if not self.DATABASE_URL:
+        self.database_url: str = os.getenv("DATABASE_URL", "")
+        if not self.database_url:
             raise ValueError("DATABASE_URL environment variable is required")
 
-    @property
-    def async_database_url(self) -> str:
-        """Return the async-compatible database URL."""
-        # Ensure the URL uses asyncpg driver
-        url = self.DATABASE_URL
-        if url.startswith("postgresql://"):
-            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-        return url
+        # Better Auth JWT configuration
+        self.better_auth_jwks_url: str = os.getenv(
+            "BETTER_AUTH_JWKS_URL", "http://localhost:3000/api/auth/jwks"
+        )
+        self.better_auth_issuer: str = os.getenv(
+            "BETTER_AUTH_ISSUER", "http://localhost:3000"
+        )
+        self.frontend_url: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 
-settings = Settings() if os.getenv("DATABASE_URL") else None
-
-
+@lru_cache
 def get_settings() -> Settings:
-    """Get application settings, creating if needed."""
-    global settings
-    if settings is None:
-        settings = Settings()
-    return settings
+    """Get cached settings instance."""
+    return Settings()

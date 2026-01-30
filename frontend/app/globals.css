@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+:root {
+  /* Primary Colors */
+  --primary-yellow: #F59E0B;
+  --primary-yellow-hover: #D97706;
+  --primary-yellow-light: #FCD34D;
+
+  /* Secondary Colors */
+  --secondary-purple: #7C3AED;
+  --secondary-purple-hover: #6D28D9;
+  --secondary-purple-light: #A78BFA;
+
+  /* Neutral Colors */
+  --background: #F8FAFC;
+  --foreground: #1E293B;
+  --card-bg: #FFFFFF;
+  --card-border: #E2E8F0;
+  --muted: #64748B;
+  --muted-light: #94A3B8;
+
+  /* Semantic Colors */
+  --success: #10B981;
+  --error: #EF4444;
+  --warning: #F59E0B;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0F172A;
+    --foreground: #F1F5F9;
+    --card-bg: #1E293B;
+    --card-border: #334155;
+    --muted: #94A3B8;
+    --muted-light: #64748B;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--card-border);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--muted-light);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+/* Focus styles */
+*:focus-visible {
+  outline: 2px solid var(--primary-yellow);
+  outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+  background: var(--primary-yellow);
+  color: var(--foreground);
+}

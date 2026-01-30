@@ -1,13 +1,13 @@
-# Quickstart: Core Todo Backend API
+# Quickstart: Todo Backend API
 
-**Feature**: 001-todo-backend-api
-**Date**: 2026-01-09
+**Feature Branch**: `001-todo-backend-api`
+**Date**: 2026-01-10
 
 ## Prerequisites
 
 - Python 3.11 or higher
-- Access to Neon PostgreSQL database
-- `DATABASE_URL` environment variable set
+- Access to a Neon PostgreSQL database
+- `pip` package manager
 
 ## Setup
 
@@ -21,9 +21,7 @@ cd backend
 
 ```bash
 python -m venv venv
-source venv/bin/activate  # Linux/macOS
-# or
-.\venv\Scripts\activate   # Windows
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
 ### 3. Install Dependencies
@@ -34,19 +32,19 @@ pip install -r requirements.txt
 
 ### 4. Configure Environment
 
-Create a `.env` file in the `backend` directory:
+Create a `.env` file in the `backend/` directory:
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and set your Neon PostgreSQL connection string:
+Edit `.env` with your Neon database credentials:
 
 ```env
-DATABASE_URL=postgresql+asyncpg://user:password@host/database?sslmode=require
+DATABASE_URL=postgresql://username:password@host.neon.tech:5432/dbname?sslmode=require
 ```
 
-### 5. Start the Server
+### 5. Run the Server
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -62,84 +60,102 @@ The API will be available at `http://localhost:8000`
 curl http://localhost:8000/
 ```
 
-Expected response:
-```json
-{"status": "healthy"}
-```
+Expected: Server responds (FastAPI default or custom health endpoint)
+
+### API Documentation
+
+Visit `http://localhost:8000/docs` for interactive Swagger UI.
+
+## Quick API Test
 
 ### Create a Task
 
 ```bash
-curl -X POST http://localhost:8000/api/user-123/tasks \
+curl -X POST "http://localhost:8000/api/user-123/tasks" \
   -H "Content-Type: application/json" \
   -d '{"title": "My first task", "description": "Testing the API"}'
 ```
 
-Expected response (201 Created):
+Expected Response (201 Created):
 ```json
 {
-  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "id": 1,
   "user_id": "user-123",
   "title": "My first task",
   "description": "Testing the API",
-  "completed": false,
-  "created_at": "2026-01-09T10:30:00Z",
-  "completed_at": null
+  "is_completed": false,
+  "created_at": "2026-01-10T12:00:00Z",
+  "updated_at": "2026-01-10T12:00:00Z"
 }
 ```
 
 ### List Tasks
 
 ```bash
-curl http://localhost:8000/api/user-123/tasks
+curl "http://localhost:8000/api/user-123/tasks"
 ```
 
 ### Get Single Task
 
 ```bash
-curl http://localhost:8000/api/user-123/tasks/{task_id}
+curl "http://localhost:8000/api/user-123/tasks/1"
 ```
 
 ### Update Task
 
 ```bash
-curl -X PUT http://localhost:8000/api/user-123/tasks/{task_id} \
+curl -X PUT "http://localhost:8000/api/user-123/tasks/1" \
   -H "Content-Type: application/json" \
-  -d '{"title": "Updated title", "description": "Updated description"}'
+  -d '{"title": "Updated task title", "description": "New description"}'
 ```
 
 ### Complete Task
 
 ```bash
-curl -X PATCH http://localhost:8000/api/user-123/tasks/{task_id}/complete
+curl -X PATCH "http://localhost:8000/api/user-123/tasks/1/complete"
 ```
 
 ### Delete Task
 
 ```bash
-curl -X DELETE http://localhost:8000/api/user-123/tasks/{task_id}
+curl -X DELETE "http://localhost:8000/api/user-123/tasks/1"
 ```
 
-## API Documentation
+Expected: 204 No Content
 
-Once the server is running, access:
+## User Isolation Test
 
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-- **OpenAPI JSON**: http://localhost:8000/openapi.json
+Verify tasks are isolated between users:
 
-## Common Issues
+```bash
+# Create task for user-a
+curl -X POST "http://localhost:8000/api/user-a/tasks" \
+  -H "Content-Type: application/json" \
+  -d '{"title": "User A task"}'
 
-### Database Connection Failed
+# Try to access from user-b (should return 404)
+curl "http://localhost:8000/api/user-b/tasks/1"
+```
+
+Expected: 404 Not Found
+
+## Troubleshooting
+
+### Database Connection Error
 
 ```
-Error: Connection to database failed
+sqlalchemy.exc.OperationalError: could not connect to server
 ```
 
-**Solution**: Verify `DATABASE_URL` in `.env` file:
-- Check credentials are correct
-- Ensure `?sslmode=require` is included for Neon
-- Verify network connectivity to Neon
+**Solution**: Verify DATABASE_URL in `.env` and ensure Neon database is accessible.
+
+### SSL Required Error
+
+```
+SSL connection is required
+```
+
+**Solution**: Ensure `?sslmode=require` is in your DATABASE_URL.
 
 ### Module Not Found
 
@@ -147,57 +163,29 @@ Error: Connection to database failed
 ModuleNotFoundError: No module named 'app'
 ```
 
-**Solution**: Run from the `backend` directory, not from `app`:
-```bash
-cd backend
-uvicorn app.main:app --reload
-```
+**Solution**: Run uvicorn from the `backend/` directory, not from project root.
 
-### Port Already in Use
+## Development Workflow
 
-```
-Error: Address already in use
-```
+1. Make changes to code
+2. Server auto-reloads (with `--reload` flag)
+3. Test via Swagger UI at `/docs`
+4. Verify with curl commands above
 
-**Solution**: Use a different port:
-```bash
-uvicorn app.main:app --reload --port 8001
-```
+## API Endpoints Summary
 
-## Running Tests
-
-```bash
-# From backend directory
-pytest tests/ -v
-```
-
-## Project Structure
-
-```
-backend/
-├── app/
-│   ├── __init__.py
-│   ├── main.py           # FastAPI app entry point
-│   ├── config.py         # Environment configuration
-│   ├── database.py       # Database connection
-│   ├── models/
-│   │   └── task.py       # SQLModel Task entity
-│   ├── schemas/
-│   │   └── task.py       # Request/Response schemas
-│   └── routes/
-│       └── tasks.py      # API endpoints
-├── tests/
-│   └── test_tasks.py     # API tests
-├── requirements.txt
-├── .env.example
-└── README.md
-```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/{user_id}/tasks` | List all tasks |
+| POST | `/api/{user_id}/tasks` | Create task |
+| GET | `/api/{user_id}/tasks/{id}` | Get task |
+| PUT | `/api/{user_id}/tasks/{id}` | Update task |
+| DELETE | `/api/{user_id}/tasks/{id}` | Delete task |
+| PATCH | `/api/{user_id}/tasks/{id}/complete` | Mark complete |
 
 ## Next Steps
 
-After verifying the backend works:
-
+After verification:
 1. Run `/sp.tasks` to generate implementation tasks
-2. Implement each task following the plan
-3. Run tests to verify functionality
-4. Proceed to frontend integration (separate feature)
+2. Follow task list to implement features
+3. Test each user story independently

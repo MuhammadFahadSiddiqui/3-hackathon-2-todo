@@ -1,23 +1,23 @@
 # Implementation Plan: Core Todo Backend API & Database Layer
 
-**Branch**: `001-todo-backend-api` | **Date**: 2026-01-09 | **Spec**: [spec.md](./spec.md)
+**Branch**: `001-todo-backend-api` | **Date**: 2026-01-10 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/001-todo-backend-api/spec.md`
 
 ## Summary
 
-Implement a RESTful API backend for a multi-user todo application using Python FastAPI with SQLModel ORM connected to Neon Serverless PostgreSQL. The API provides six endpoints for task CRUD operations and completion tracking, with strict user-scoped data isolation at the database query level. This feature establishes the data persistence layer that will later integrate with JWT authentication.
+Implement a RESTful Todo API backend using FastAPI with SQLModel ORM connected to Neon Serverless PostgreSQL. The API provides full CRUD operations for tasks with strict user isolation at the query level. All tasks are scoped by user_id to prevent cross-user data access. This phase implements the data layer and API without authentication (auth deferred to future phase).
 
 ## Technical Context
 
 **Language/Version**: Python 3.11+
-**Primary Dependencies**: FastAPI, SQLModel, Uvicorn, python-dotenv, asyncpg
-**Storage**: Neon Serverless PostgreSQL (connection via DATABASE_URL environment variable)
-**Testing**: pytest, httpx (for async API testing)
-**Target Platform**: Linux server / containerized deployment
-**Project Type**: Web application (backend only for this feature)
-**Performance Goals**: <500ms response time per request under normal load
-**Constraints**: All queries scoped by user_id; no authentication in this feature
-**Scale/Scope**: Single-user to small-team usage; ~1000 tasks per user maximum
+**Primary Dependencies**: FastAPI 0.109+, SQLModel 0.0.16+, Pydantic 2.x, uvicorn 0.27+
+**Storage**: Neon Serverless PostgreSQL (via psycopg2-binary)
+**Testing**: Manual API testing (curl/Postman), pytest available for future
+**Target Platform**: Linux server / Docker container
+**Project Type**: Web application (backend only in this phase)
+**Performance Goals**: <500ms response time per SC-001
+**Constraints**: SSL required for Neon, environment-based config only
+**Scale/Scope**: 100 concurrent requests, 10,000 tasks per user
 
 ## Constitution Check
 
@@ -25,17 +25,14 @@ Implement a RESTful API backend for a multi-user todo application using Python F
 
 | Principle | Status | Evidence |
 |-----------|--------|----------|
-| I. Spec-Driven Development | ✅ PASS | All endpoints derived from spec.md FR-001 to FR-016 |
-| II. Correctness Over Speed | ✅ PASS | HTTP semantics strictly defined; all edge cases documented |
-| III. Security-First Design | ⚠️ DEFERRED | Auth explicitly out of scope per spec; data isolation enforced |
-| IV. User Data Isolation | ✅ PASS | All queries scoped by user_id (FR-008); cross-user access returns 404 |
-| V. Maintainability | ✅ PASS | Clear separation: models, routes, database config |
-| VI. API Contract Stability | ✅ PASS | Contracts defined in /contracts/; no breaking changes |
+| I. Spec-Driven Development | ✅ PASS | Implementation follows spec.md FR-001 through FR-013 |
+| II. Correctness Over Speed | ✅ PASS | API contracts defined in OpenAPI, validation on all inputs |
+| III. Security-First Design | ✅ PASS (scoped) | User isolation via query-level filtering; auth deferred per spec Out of Scope |
+| IV. Reproducibility | ✅ PASS | All config via environment variables, deterministic schema creation |
+| V. Maintainability | ✅ PASS | Clear separation: models/schemas/routes pattern |
+| VI. Traceability | ✅ PASS | All endpoints trace to spec requirements (FR-001, FR-002) |
 
-**Deferred Item Justification**: Security-First Design principle requires JWT validation, but spec explicitly excludes auth (Out of Scope). This feature prepares for future auth integration by:
-- Using user_id path parameter that will be validated against JWT claims
-- Implementing query-level isolation that auth middleware will enforce
-- Structuring routes to accept auth dependency injection
+**Gate Result**: PASS - No violations requiring justification
 
 ## Project Structure
 
@@ -43,13 +40,16 @@ Implement a RESTful API backend for a multi-user todo application using Python F
 
 ```text
 specs/001-todo-backend-api/
+├── spec.md              # Feature specification
 ├── plan.md              # This file
-├── research.md          # Phase 0 output
-├── data-model.md        # Phase 1 output
-├── quickstart.md        # Phase 1 output
-├── contracts/           # Phase 1 output
-│   └── openapi.yaml     # OpenAPI 3.0 specification
-└── tasks.md             # Phase 2 output (/sp.tasks command)
+├── research.md          # Technology decisions
+├── data-model.md        # Entity definitions
+├── quickstart.md        # Setup and verification guide
+├── contracts/
+│   └── openapi.yaml     # API contract
+├── checklists/
+│   └── requirements.md  # Spec quality checklist
+└── tasks.md             # Implementation tasks (via /sp.tasks)
 ```
 
 ### Source Code (repository root)
@@ -57,66 +57,97 @@ specs/001-todo-backend-api/
 ```text
 backend/
 ├── app/
-│   ├── __init__.py
-│   ├── main.py              # FastAPI application entry point
-│   ├── config.py            # Environment configuration
-│   ├── database.py          # SQLModel engine and session management
+│   ├── __init__.py          # Package marker
+│   ├── main.py              # FastAPI app entry point, router registration
+│   ├── config.py            # Settings from environment variables
+│   ├── database.py          # SQLModel engine, session dependency
 │   ├── models/
 │   │   ├── __init__.py
-│   │   └── task.py          # Task SQLModel
+│   │   └── task.py          # Task SQLModel (table=True)
 │   ├── schemas/
 │   │   ├── __init__.py
-│   │   └── task.py          # Pydantic request/response schemas
+│   │   └── task.py          # TaskCreate, TaskUpdate, TaskResponse
 │   └── routes/
 │       ├── __init__.py
-│       └── tasks.py         # Task CRUD endpoints
-├── tests/
-│   ├── __init__.py
-│   ├── conftest.py          # pytest fixtures
-│   └── test_tasks.py        # API endpoint tests
-├── requirements.txt
-├── .env.example
-└── README.md
+│       └── tasks.py         # /api/{user_id}/tasks endpoints
+├── requirements.txt         # Python dependencies
+├── .env.example            # Template for DATABASE_URL
+└── README.md               # Backend-specific documentation
 ```
 
-**Structure Decision**: Using web application structure with `/backend` directory. This prepares for future frontend integration while keeping backend self-contained. The `/app` subdirectory follows FastAPI conventions with clear separation of models, schemas, and routes.
+**Structure Decision**: Web application backend-only structure. Frontend will be added in a separate feature branch. The `app/` package follows FastAPI conventions with models, schemas, and routes separation for maintainability.
 
 ## Complexity Tracking
 
-> No complexity violations. Design follows constitution principles with minimal justified deviations.
+No violations requiring justification. The structure follows minimal complexity principles:
 
-| Aspect | Decision | Rationale |
-|--------|----------|-----------|
-| Sync vs Async DB | Async (asyncpg) | Neon PostgreSQL works well with async; better scalability |
-| Schema Separation | Separate Pydantic schemas from SQLModel | Cleaner API contracts; prevents ORM internals leaking |
-| Repository Pattern | Not used | Direct SQLModel queries sufficient for CRUD; no complex business logic |
+- Single Task entity (no over-engineering)
+- Flat route structure (no nested routers)
+- Direct database access (no repository abstraction)
+- Synchronous operations (no async complexity)
+
+## Design Artifacts
+
+| Artifact | Path | Status |
+|----------|------|--------|
+| Research | [research.md](./research.md) | ✅ Complete |
+| Data Model | [data-model.md](./data-model.md) | ✅ Complete |
+| API Contract | [contracts/openapi.yaml](./contracts/openapi.yaml) | ✅ Complete |
+| Quickstart | [quickstart.md](./quickstart.md) | ✅ Complete |
 
 ## Implementation Phases
 
-### Phase 1: Project Setup
-- Initialize Python project with pyproject.toml or requirements.txt
-- Configure FastAPI application with CORS (permissive for development)
-- Set up environment variable loading (python-dotenv)
-- Create database connection module with async session management
+### Phase 1: Setup (Tasks T001-T003)
 
-### Phase 2: Data Model
-- Define Task SQLModel with all specified fields
-- Implement table creation/migration logic
-- Add field validators (title length, description length)
+- Create backend directory structure
+- Initialize Python project with requirements.txt
+- Create .env.example with DATABASE_URL template
 
-### Phase 3: API Routes
-- Implement all six endpoints per contracts/openapi.yaml
-- Add request validation using Pydantic schemas
-- Ensure all queries include user_id filter
-- Return appropriate HTTP status codes
+### Phase 2: Foundational (Tasks T004-T009)
 
-### Phase 4: Error Handling
-- Implement consistent error response format
-- Handle database connection failures (503)
-- Handle validation errors (422)
-- Handle not found (404)
+- Implement config.py for environment loading
+- Implement database.py with engine and session
+- Create Task model with all fields
+- Create Pydantic schemas for requests/responses
 
-### Phase 5: Verification
-- Manual API testing with curl/httpie
-- Verify data persistence across restarts
-- Confirm user isolation (cross-user 404s)
+### Phase 3-8: User Stories (Tasks T010-T027)
+
+- Implement each CRUD endpoint following spec acceptance scenarios
+- User Story 1 (P1): Create Task
+- User Story 2 (P1): List Tasks
+- User Story 3 (P2): Get Task
+- User Story 4 (P2): Update Task
+- User Story 5 (P2): Delete Task
+- User Story 6 (P3): Complete Task
+
+### Phase 9: Polish (Tasks T028-T030)
+
+- Verify all endpoints match OpenAPI contract
+- Run quickstart validation
+- Document any deviations
+
+## Key Implementation Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Sync vs Async | Synchronous | Simpler, sufficient for scale |
+| ORM Pattern | Direct SQLModel | Avoids repository overhead |
+| ID Type | Integer (SERIAL) | Per spec requirement |
+| Timestamps | Server-side default | Consistent UTC |
+| Error Handling | FastAPI HTTPException | Standard JSON errors |
+
+## Risk Mitigation
+
+| Risk | Mitigation |
+|------|------------|
+| Neon connection issues | SSL mode required, connection retry logic |
+| SQL injection | SQLModel parameterized queries |
+| User enumeration | 404 for both missing and unauthorized |
+| Schema drift | OpenAPI as source of truth |
+
+## Next Steps
+
+1. Run `/sp.tasks` to generate detailed implementation task list
+2. Execute tasks in order, marking complete as done
+3. Validate against quickstart.md after implementation
+4. Run acceptance tests per spec scenarios

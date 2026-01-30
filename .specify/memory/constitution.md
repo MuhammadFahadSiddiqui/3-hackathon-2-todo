@@ -1,23 +1,23 @@
 <!--
-  Sync Impact Report
-  ==================
-  Version change: 0.0.0 → 1.0.0 (MAJOR - initial constitution creation)
+  SYNC IMPACT REPORT
+  ====================
+  Version change: 0.0.0 → 1.0.0
 
-  Modified principles: N/A (new constitution)
+  Modified principles: N/A (initial creation)
 
   Added sections:
-    - Core Principles (6 principles)
+    - Core Principles (6 principles: Spec-Driven Development, Correctness Over Speed,
+      Security-First Design, Reproducibility, Maintainability, Traceability)
     - Technology Constraints
-    - Security Constraints
-    - Operational Constraints
+    - Security Requirements
     - Governance
 
-  Removed sections: N/A
+  Removed sections: N/A (initial creation)
 
   Templates requiring updates:
     - .specify/templates/plan-template.md: ✅ Compatible (Constitution Check section exists)
-    - .specify/templates/spec-template.md: ✅ Compatible (Requirements align with principles)
-    - .specify/templates/tasks-template.md: ✅ Compatible (Phase structure supports TDD)
+    - .specify/templates/spec-template.md: ✅ Compatible (Requirements section supports FR-XXX format)
+    - .specify/templates/tasks-template.md: ✅ Compatible (Phase structure supports security tasks)
 
   Follow-up TODOs: None
 -->
@@ -28,125 +28,132 @@
 
 ### I. Spec-Driven Development
 
-All features and changes MUST be derived from explicit specifications. No manual coding outside generated plans is permitted.
+All implementation work MUST be derived from explicit specifications and generated plans.
+No manual coding is permitted outside the boundaries of generated plans.
 
-- Every feature MUST trace back to an explicit requirement in spec.md
-- Implementation MUST follow the generated plan.md exactly
-- Code generation MUST follow modern best practices for each framework
-- All steps MUST be derivable from specs and plans (reproducibility)
-
-**Rationale**: Ensures consistency, traceability, and prevents scope creep. Changes are deliberate and documented.
+- Every feature MUST trace back to an explicit requirement in a spec document
+- Implementation MUST follow the workflow: Spec → Plan → Tasks → Implementation
+- All specs MUST be completed independently and validated before proceeding
+- Claude Code + Spec-Kit Plus is the ONLY permitted spec workflow tooling
 
 ### II. Correctness Over Speed
 
-APIs, authentication, and data integrity MUST be precise. Shortcuts that compromise correctness are prohibited.
+APIs, authentication, and data integrity MUST be precise and verifiable.
 
-- All API behavior MUST match defined endpoints and HTTP semantics
-- Data operations MUST maintain referential integrity
-- Edge cases MUST be handled explicitly, not ignored
-- Error responses MUST be accurate and informative
-
-**Rationale**: A correct system can be optimized; an incorrect system must be rewritten.
+- All API behavior MUST match defined endpoints and HTTP semantics exactly
+- Authentication MUST be stateless using JWT with proper signature verification
+- Data integrity MUST be maintained through validated schemas and migrations
+- No shortcuts that compromise correctness are acceptable
 
 ### III. Security-First Design
 
-JWT validation and user isolation MUST be enforced everywhere. Security is non-negotiable.
+JWT validation and user isolation MUST be enforced at every layer.
 
-- All API routes (post-auth) MUST require a valid JWT
+- All API routes MUST require a valid JWT (post-authentication flows)
 - Requests without valid tokens MUST return 401 Unauthorized
-- JWT signature verification MUST occur on every request
+- JWT signature verification is REQUIRED on every authenticated request
 - User ID from JWT MUST match route-level user context
-- Tasks MUST never be accessible across users
+- Tasks MUST never be accessible across users (strict tenant isolation)
 - Environment variables MUST be used for all secrets
-- No hardcoded credentials or magic values permitted
+- No hardcoded credentials or magic values are permitted
 
-**Rationale**: Security breaches destroy user trust and can have legal consequences. Defense in depth starts at design.
+### IV. Reproducibility
 
-### IV. User Data Isolation
+All implementation steps MUST be derivable from specifications and plans.
 
-User data MUST be isolated at the backend query level. Cross-user data access is a critical failure.
-
-- Every database query MUST filter by authenticated user_id
-- Authorization checks MUST occur before any data operation
-- API endpoints MUST validate ownership before returning/modifying data
-- Multi-tenant data leakage MUST be treated as a P0 incident
-
-**Rationale**: User privacy is fundamental. Isolation at the query level prevents entire classes of vulnerabilities.
+- Every code change MUST reference its originating spec/plan/task
+- Build and deployment processes MUST be deterministic
+- Database schema changes MUST use versioned migrations
+- Configuration MUST be externalized and documented
 
 ### V. Maintainability
 
 Clear separation of frontend, backend, and auth concerns MUST be maintained.
 
-- Frontend (Next.js) handles UI/UX and client-side state only
-- Backend (FastAPI) handles business logic, data access, and API contracts
-- Authentication (Better Auth) handles identity, tokens, and session management
-- Each layer MUST have well-defined interfaces
-- Cross-cutting concerns MUST be documented
+- Frontend (Next.js 16+ with App Router) MUST be isolated from backend implementation details
+- Backend (Python FastAPI with SQLModel) MUST expose clean API contracts
+- Authentication (Better Auth, JWT-based) MUST be a distinct, pluggable layer
+- Cross-cutting concerns MUST be handled through middleware patterns
+- Code generation MUST follow modern best practices for each framework
 
-**Rationale**: Clean architecture enables independent testing, deployment, and evolution of each layer.
+### VI. Traceability
 
-### VI. API Contract Stability
+Every feature and change MUST be traceable through the spec workflow.
 
-API contracts MUST remain stable once specified. Breaking changes require explicit versioning.
-
-- Endpoint paths, methods, and response schemas are contracts
-- Once specified, contracts MUST NOT change without versioning
-- Backward compatibility MUST be maintained within major versions
-- Breaking changes MUST be documented in changelog
-
-**Rationale**: Stable APIs enable frontend and backend to evolve independently and reduce integration failures.
+- All features MUST link to their specification document
+- API contracts MUST remain stable once specified
+- Breaking changes MUST be explicitly documented and versioned
+- Prompt History Records (PHRs) MUST be created for all significant work
 
 ## Technology Constraints
 
-Technology stack is fixed and MUST NOT be substituted without constitution amendment.
+The following technology stack is MANDATED for this project:
 
-| Layer | Technology | Version Requirement |
-|-------|------------|---------------------|
-| Frontend | Next.js with App Router | 16+ |
-| Backend | Python FastAPI | Latest stable |
-| ORM | SQLModel | Latest stable |
-| Database | Neon Serverless PostgreSQL | N/A |
-| Authentication | Better Auth (JWT-based) | Latest stable |
-| Spec Workflow | Claude Code + Spec-Kit Plus | N/A |
+| Layer          | Technology                     | Version/Notes              |
+|----------------|--------------------------------|----------------------------|
+| Frontend       | Next.js with App Router        | 16+                        |
+| Backend        | Python FastAPI                 | Latest stable              |
+| ORM            | SQLModel                       | Latest stable              |
+| Database       | Neon Serverless PostgreSQL     | Managed service            |
+| Authentication | Better Auth                    | JWT-based                  |
+| Spec Workflow  | Claude Code + Spec-Kit Plus    | Required tooling           |
 
-**Constraints**:
-- Authentication MUST be stateless using JWT
-- All database access MUST go through SQLModel
-- Frontend MUST use App Router (not Pages Router)
+Deviations from this stack MUST be documented with explicit justification and approval.
 
-## Security Constraints
+## Security Requirements
 
-These constraints are NON-NEGOTIABLE and MUST be verified in code review.
+### Authentication Requirements
 
-1. **Authentication Required**: All API routes (except auth endpoints) MUST require a valid JWT
-2. **Unauthorized Response**: Requests without valid tokens MUST return 401 Unauthorized
-3. **Signature Verification**: JWT signature MUST be verified on every request
-4. **User Context Match**: User ID from JWT MUST match route-level user context
-5. **Data Isolation**: Tasks MUST never be accessible across users
-6. **Secret Management**: All secrets MUST use environment variables
-7. **No Hardcoding**: No credentials or tokens in source code
+- All protected API routes MUST validate JWT tokens before processing
+- Token validation MUST verify signature, expiration, and issuer claims
+- Invalid or expired tokens MUST result in 401 Unauthorized response
+- Token refresh mechanisms MUST be implemented securely
 
-## Operational Constraints
+### Authorization Requirements
 
-These constraints govern how development proceeds.
+- User data isolation MUST be enforced at the backend query level
+- All database queries for user data MUST filter by authenticated user ID
+- No API endpoint may return or modify another user's data
+- Admin/elevated access patterns MUST be explicitly designed and documented
 
-1. **No Manual Coding**: Implementation MUST follow generated plans
-2. **Independent Validation**: Each spec MUST be completed and validated independently
-3. **Contract Stability**: API contracts MUST remain stable once specified
-4. **Atomic Changes**: Each change MUST be small, testable, and traceable
+### Data Protection
+
+- Sensitive data MUST be encrypted at rest and in transit
+- Passwords MUST never be stored in plaintext
+- Secrets MUST be managed via environment variables
+- Audit logging MUST capture security-relevant events
 
 ## Governance
 
-This constitution supersedes all other practices. Amendments require:
+### Amendment Procedure
 
-1. **Documentation**: Proposed change MUST be documented with rationale
-2. **Impact Analysis**: Changes MUST include impact on existing specs and code
-3. **Version Increment**: Amendment MUST increment constitution version
-4. **Migration Plan**: If breaking, MUST include migration path
+1. Proposed changes MUST be documented with rationale
+2. Changes affecting core principles require explicit stakeholder approval
+3. All amendments MUST update the version number appropriately
+4. Migration plans MUST accompany breaking governance changes
 
-**Compliance Requirements**:
+### Versioning Policy
+
+- MAJOR: Backward-incompatible principle changes or removals
+- MINOR: New principles or materially expanded guidance
+- PATCH: Clarifications, wording improvements, non-semantic changes
+
+### Compliance Review
+
 - All PRs MUST verify compliance with this constitution
-- Constitution Check in plan.md MUST pass before implementation
-- Violations discovered post-merge MUST be treated as P0 bugs
+- Complexity beyond minimal requirements MUST be justified
+- Security violations result in immediate rejection
+- Constitution takes precedence over all other practices
 
-**Version**: 1.0.0 | **Ratified**: 2026-01-09 | **Last Amended**: 2026-01-09
+### Success Criteria
+
+This project is considered successful when:
+
+- All 5 basic Todo features are implemented as a web application
+- Multi-user system is fully functional with persistent storage
+- JWT-based authentication works across frontend and backend
+- Users can only access and modify their own tasks
+- Backend passes auth and ownership enforcement review
+- Frontend successfully integrates auth and secured APIs
+
+**Version**: 1.0.0 | **Ratified**: 2026-01-10 | **Last Amended**: 2026-01-10

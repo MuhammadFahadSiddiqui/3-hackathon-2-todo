@@ -1,44 +1,40 @@
-"""FastAPI application entry point."""
-
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-from app.database import create_db_and_tables, close_db_connection
-from app.routes import tasks
+from app.config import get_settings
+from app.database import create_db_and_tables
+from app.routes import auth, tasks
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan handler for startup and shutdown."""
-    # Startup: Create database tables
-    await create_db_and_tables()
+    """Startup and shutdown events."""
+    create_db_and_tables()
     yield
-    # Shutdown: Close database connection
-    await close_db_connection()
 
 
 app = FastAPI(
     title="Todo Backend API",
-    description="RESTful API for multi-user todo task management",
-    version="1.0.0",
+    description="RESTful API for multi-user task management",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
-# Configure CORS for development
+# CORS middleware configuration
+settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[settings.frontend_url],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "Authorization"],
 )
 
-# Include routers
 app.include_router(tasks.router)
+app.include_router(auth.router)
 
 
-@app.get("/", tags=["Health"])
-async def health_check():
+@app.get("/")
+def root():
     """Health check endpoint."""
-    return {"status": "healthy"}
+    return {"status": "ok", "message": "Todo Backend API is running"}

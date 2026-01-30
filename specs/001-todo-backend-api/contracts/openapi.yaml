@@ -1,10 +1,10 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Todo Backend API
   description: |
-    RESTful API for multi-user todo task management.
-    All endpoints are scoped by user_id in the URL path.
-    Authentication is not implemented in this version.
+    RESTful API for multi-user task management.
+    All endpoints are scoped by user_id to enforce data isolation.
+    Authentication is not implemented in this phase - user_id is provided by the client.
   version: 1.0.0
   contact:
     name: API Support
@@ -12,6 +12,10 @@ info:
 servers:
   - url: http://localhost:8000
     description: Local development server
+
+tags:
+  - name: Tasks
+    description: Task CRUD operations
 
 paths:
   /api/{user_id}/tasks:
@@ -22,7 +26,7 @@ paths:
       tags:
         - Tasks
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/userId'
       responses:
         '200':
           description: List of tasks (may be empty)
@@ -32,10 +36,22 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/TaskResponse'
+              examples:
+                with_tasks:
+                  summary: User has tasks
+                  value:
+                    - id: 1
+                      user_id: "550e8400-e29b-41d4-a716-446655440000"
+                      title: "Buy groceries"
+                      description: "Milk, eggs, bread"
+                      is_completed: false
+                      created_at: "2026-01-10T10:30:00Z"
+                      updated_at: "2026-01-10T10:30:00Z"
+                empty:
+                  summary: User has no tasks
+                  value: []
         '422':
           $ref: '#/components/responses/ValidationError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
 
     post:
       summary: Create a new task
@@ -44,13 +60,23 @@ paths:
       tags:
         - Tasks
       parameters:
-        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/userId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/TaskCreate'
+            examples:
+              with_description:
+                summary: Task with description
+                value:
+                  title: "Buy groceries"
+                  description: "Milk, eggs, bread"
+              minimal:
+                summary: Task without description
+                value:
+                  title: "Call dentist"
       responses:
         '201':
           description: Task created successfully
@@ -60,19 +86,17 @@ paths:
                 $ref: '#/components/schemas/TaskResponse'
         '422':
           $ref: '#/components/responses/ValidationError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
 
-  /api/{user_id}/tasks/{task_id}:
+  /api/{user_id}/tasks/{id}:
     get:
-      summary: Get a single task
-      description: Returns a specific task by ID for the specified user
+      summary: Get a specific task
+      description: Returns a single task by ID, scoped to the user
       operationId: getTask
       tags:
         - Tasks
       parameters:
-        - $ref: '#/components/parameters/UserId'
-        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/userId'
+        - $ref: '#/components/parameters/taskId'
       responses:
         '200':
           description: Task found
@@ -84,8 +108,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
 
     put:
       summary: Update a task
@@ -94,8 +116,8 @@ paths:
       tags:
         - Tasks
       parameters:
-        - $ref: '#/components/parameters/UserId'
-        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/userId'
+        - $ref: '#/components/parameters/taskId'
       requestBody:
         required: true
         content:
@@ -113,8 +135,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
 
     delete:
       summary: Delete a task
@@ -123,8 +143,8 @@ paths:
       tags:
         - Tasks
       parameters:
-        - $ref: '#/components/parameters/UserId'
-        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/userId'
+        - $ref: '#/components/parameters/taskId'
       responses:
         '204':
           description: Task deleted successfully (no content)
@@ -132,21 +152,17 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
 
-  /api/{user_id}/tasks/{task_id}/complete:
+  /api/{user_id}/tasks/{id}/complete:
     patch:
-      summary: Mark task as complete
-      description: |
-        Sets the task's completed status to true and records the completion timestamp.
-        This operation is idempotent - calling it on an already completed task returns 200 OK.
+      summary: Mark a task as complete
+      description: Sets the task's is_completed flag to true. Idempotent operation.
       operationId: completeTask
       tags:
         - Tasks
       parameters:
-        - $ref: '#/components/parameters/UserId'
-        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/userId'
+        - $ref: '#/components/parameters/taskId'
       responses:
         '200':
           description: Task marked as complete
@@ -158,31 +174,28 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
 
 components:
   parameters:
-    UserId:
+    userId:
       name: user_id
       in: path
       required: true
-      description: Unique identifier for the user
+      description: User identifier (UUID format)
       schema:
         type: string
         minLength: 1
-        maxLength: 255
-        example: "user-123"
+        example: "550e8400-e29b-41d4-a716-446655440000"
 
-    TaskId:
-      name: task_id
+    taskId:
+      name: id
       in: path
       required: true
-      description: Unique identifier for the task (UUID format)
+      description: Task identifier
       schema:
-        type: string
-        format: uuid
-        example: "550e8400-e29b-41d4-a716-446655440000"
+        type: integer
+        minimum: 1
+        example: 1
 
   schemas:
     TaskCreate:
@@ -193,12 +206,11 @@ components:
         title:
           type: string
           minLength: 1
-          maxLength: 255
-          description: Task title (required, cannot be whitespace only)
+          maxLength: 500
+          description: Task title (required, non-empty)
           example: "Buy groceries"
         description:
           type: string
-          maxLength: 2000
           nullable: true
           description: Optional task description
           example: "Milk, eggs, bread"
@@ -211,15 +223,14 @@ components:
         title:
           type: string
           minLength: 1
-          maxLength: 255
-          description: Updated task title (required, cannot be whitespace only)
-          example: "Buy groceries from Costco"
+          maxLength: 500
+          description: Task title (required, non-empty)
+          example: "Buy groceries and supplies"
         description:
           type: string
-          maxLength: 2000
           nullable: true
-          description: Updated task description
-          example: "Milk, eggs, bread, cheese"
+          description: Optional task description
+          example: "Milk, eggs, bread, cleaning supplies"
 
     TaskResponse:
       type: object
@@ -227,18 +238,18 @@ components:
         - id
         - user_id
         - title
-        - completed
+        - is_completed
         - created_at
+        - updated_at
       properties:
         id:
-          type: string
-          format: uuid
+          type: integer
           description: Unique task identifier
-          example: "550e8400-e29b-41d4-a716-446655440000"
+          example: 1
         user_id:
           type: string
-          description: Owner identifier
-          example: "user-123"
+          description: Owner's user identifier
+          example: "550e8400-e29b-41d4-a716-446655440000"
         title:
           type: string
           description: Task title
@@ -246,32 +257,53 @@ components:
         description:
           type: string
           nullable: true
-          description: Task description (null if not set)
+          description: Task description (may be null)
           example: "Milk, eggs, bread"
-        completed:
+        is_completed:
           type: boolean
-          description: Whether the task is complete
+          description: Whether the task is completed
           example: false
         created_at:
           type: string
           format: date-time
-          description: Task creation timestamp (ISO 8601, UTC)
-          example: "2026-01-09T10:30:00Z"
-        completed_at:
+          description: Task creation timestamp (UTC)
+          example: "2026-01-10T10:30:00Z"
+        updated_at:
           type: string
           format: date-time
-          nullable: true
-          description: Task completion timestamp (null if not completed)
-          example: null
+          description: Last update timestamp (UTC)
+          example: "2026-01-10T10:30:00Z"
 
-    ErrorResponse:
+    ValidationError:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: object
+                properties:
+                  loc:
+                    type: array
+                    items:
+                      oneOf:
+                        - type: string
+                        - type: integer
+                  msg:
+                    type: string
+                  type:
+                    type: string
+
+    NotFoundError:
       type: object
       required:
         - detail
       properties:
         detail:
           type: string
-          description: Error message
           example: "Task not found"
 
   responses:
@@ -280,7 +312,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: '#/components/schemas/NotFoundError'
           example:
             detail: "Task not found"
 
@@ -289,40 +321,19 @@ components:
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              detail:
-                oneOf:
-                  - type: string
-                  - type: array
-                    items:
-                      type: object
-                      properties:
-                        loc:
-                          type: array
-                          items:
-                            oneOf:
-                              - type: string
-                              - type: integer
-                        msg:
-                          type: string
-                        type:
-                          type: string
-          example:
-            detail:
-              - loc: ["body", "title"]
-                msg: "field required"
-                type: "value_error.missing"
-
-    ServiceUnavailable:
-      description: Service temporarily unavailable (database connection failed)
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            detail: "Database connection unavailable"
-
-tags:
-  - name: Tasks
-    description: Task management operations
+            $ref: '#/components/schemas/ValidationError'
+          examples:
+            missing_title:
+              summary: Missing required field
+              value:
+                detail:
+                  - loc: ["body", "title"]
+                    msg: "Field required"
+                    type: "missing"
+            empty_title:
+              summary: Empty title
+              value:
+                detail:
+                  - loc: ["body", "title"]
+                    msg: "Title cannot be empty"
+                    type: "value_error"

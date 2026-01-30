@@ -1,7 +1,7 @@
 # Feature Specification: Core Todo Backend API & Database Layer
 
 **Feature Branch**: `001-todo-backend-api`
-**Created**: 2026-01-09
+**Created**: 2026-01-10
 **Status**: Draft
 **Input**: User description: "Core Todo Backend API & Database Layer with FastAPI, SQLModel, and Neon PostgreSQL"
 
@@ -9,203 +9,183 @@
 
 ### User Story 1 - Create a New Task (Priority: P1)
 
-As an API consumer, I want to create a new task for a specific user so that the task is persisted and can be retrieved later.
+As an API consumer, I want to create a new task for a specific user so that the task is stored persistently and can be retrieved later.
 
-**Why this priority**: Task creation is the foundational operation. Without it, no other CRUD operations are meaningful. This enables the core value proposition of the todo application.
+**Why this priority**: Task creation is the foundational operation. Without it, no other operations (read, update, delete, complete) are meaningful. This enables the core value proposition of the todo system.
 
-**Independent Test**: Can be fully tested by sending a POST request with task data and verifying the response contains the created task with a generated ID. Delivers immediate value by enabling task persistence.
+**Independent Test**: Can be fully tested by sending a POST request with task data and verifying the response contains the created task with a generated ID. Delivers immediate value as tasks are persisted.
 
 **Acceptance Scenarios**:
 
-1. **Given** a valid user_id and task data (title required), **When** POST /api/{user_id}/tasks is called, **Then** the system returns 201 Created with the complete task object including generated id, created_at timestamp, and completed=false default.
+1. **Given** a valid user_id and task data (title required), **When** POST /api/{user_id}/tasks is called, **Then** a new task is created with status 201, returning the task with generated id, created_at timestamp, and is_completed defaulting to false.
 
-2. **Given** a valid user_id and task data with optional description, **When** POST /api/{user_id}/tasks is called, **Then** the system persists both title and description, returning the complete task.
+2. **Given** a valid user_id and task data with optional description, **When** POST /api/{user_id}/tasks is called, **Then** the task is created with the provided description stored.
 
-3. **Given** a request with missing title, **When** POST /api/{user_id}/tasks is called, **Then** the system returns 422 Unprocessable Entity with a clear validation error message.
+3. **Given** a request with missing required title field, **When** POST /api/{user_id}/tasks is called, **Then** status 422 is returned with validation error details.
 
-4. **Given** a request with empty title (whitespace only), **When** POST /api/{user_id}/tasks is called, **Then** the system returns 422 Unprocessable Entity with validation error.
+4. **Given** a request with empty title (whitespace only), **When** POST /api/{user_id}/tasks is called, **Then** status 422 is returned indicating title cannot be empty.
 
 ---
 
 ### User Story 2 - List All Tasks for a User (Priority: P1)
 
-As an API consumer, I want to retrieve all tasks for a specific user so that I can display the user's complete task list.
+As an API consumer, I want to retrieve all tasks belonging to a specific user so that I can display them in a task list.
 
-**Why this priority**: Listing tasks is essential for any todo interface. Users need to see their tasks immediately after login. Co-equal priority with creation as both are needed for MVP.
+**Why this priority**: Listing tasks is equally critical as creation - users need to see their tasks immediately after creating them. This is the primary read operation.
 
-**Independent Test**: Can be fully tested by creating tasks via POST, then calling GET to retrieve them. Verifies data round-trip and user isolation.
+**Independent Test**: Can be tested by first creating tasks for a user, then calling GET to retrieve the list and verifying all created tasks are returned.
 
 **Acceptance Scenarios**:
 
-1. **Given** a user with existing tasks, **When** GET /api/{user_id}/tasks is called, **Then** the system returns 200 OK with an array of all tasks belonging to that user.
+1. **Given** a user_id with existing tasks, **When** GET /api/{user_id}/tasks is called, **Then** status 200 is returned with an array of all tasks belonging to that user.
 
-2. **Given** a user with no tasks, **When** GET /api/{user_id}/tasks is called, **Then** the system returns 200 OK with an empty array.
+2. **Given** a user_id with no tasks, **When** GET /api/{user_id}/tasks is called, **Then** status 200 is returned with an empty array.
 
-3. **Given** multiple users with tasks, **When** GET /api/{user_id}/tasks is called for user A, **Then** only user A's tasks are returned (never user B's tasks).
+3. **Given** tasks exist for multiple users, **When** GET /api/{user_id}/tasks is called for user A, **Then** only user A's tasks are returned (never user B's tasks).
 
 ---
 
-### User Story 3 - Get a Single Task (Priority: P2)
+### User Story 3 - Retrieve a Single Task (Priority: P2)
 
-As an API consumer, I want to retrieve a specific task by its ID so that I can view task details or check its current state.
+As an API consumer, I want to retrieve a specific task by ID so that I can view its details.
 
-**Why this priority**: Single task retrieval supports detail views and state checks. Important but list view provides most value initially.
+**Why this priority**: Single task retrieval supports viewing task details and is required before update/delete operations to confirm the task exists.
 
-**Independent Test**: Can be tested by creating a task, then retrieving it by ID. Verifies individual resource access.
+**Independent Test**: Can be tested by creating a task, then retrieving it by ID and verifying all fields match.
 
 **Acceptance Scenarios**:
 
-1. **Given** a task exists for a user, **When** GET /api/{user_id}/tasks/{id} is called, **Then** the system returns 200 OK with the complete task object.
+1. **Given** a valid user_id and existing task_id, **When** GET /api/{user_id}/tasks/{id} is called, **Then** status 200 is returned with the complete task object.
 
-2. **Given** a task does not exist, **When** GET /api/{user_id}/tasks/{id} is called, **Then** the system returns 404 Not Found with an error message.
+2. **Given** a valid user_id and non-existent task_id, **When** GET /api/{user_id}/tasks/{id} is called, **Then** status 404 is returned with error message.
 
-3. **Given** a task exists but belongs to a different user, **When** GET /api/{user_id}/tasks/{id} is called, **Then** the system returns 404 Not Found (task not visible across users).
+3. **Given** a task belonging to user A, **When** GET /api/{user_B}/tasks/{task_id} is called (different user), **Then** status 404 is returned (task not visible to other users).
 
 ---
 
 ### User Story 4 - Update a Task (Priority: P2)
 
-As an API consumer, I want to update an existing task's title or description so that I can correct mistakes or add details.
+As an API consumer, I want to update an existing task's title or description so that I can correct or modify task details.
 
-**Why this priority**: Updates are important for usability but not critical for MVP. Users can delete and recreate as workaround.
+**Why this priority**: Update capability allows users to refine their tasks, essential for practical task management but secondary to create/read operations.
 
-**Independent Test**: Can be tested by creating a task, updating it, then retrieving to verify changes persisted.
+**Independent Test**: Can be tested by creating a task, updating its title, then retrieving it to verify the change persisted.
 
 **Acceptance Scenarios**:
 
-1. **Given** an existing task, **When** PUT /api/{user_id}/tasks/{id} is called with new title/description, **Then** the system returns 200 OK with the updated task object.
+1. **Given** a valid user_id and existing task_id with new title/description, **When** PUT /api/{user_id}/tasks/{id} is called, **Then** status 200 is returned with the updated task.
 
-2. **Given** a task that doesn't exist, **When** PUT /api/{user_id}/tasks/{id} is called, **Then** the system returns 404 Not Found.
+2. **Given** a valid user_id and non-existent task_id, **When** PUT /api/{user_id}/tasks/{id} is called, **Then** status 404 is returned.
 
-3. **Given** a task belonging to another user, **When** PUT /api/{user_id}/tasks/{id} is called, **Then** the system returns 404 Not Found (cross-user updates prevented).
+3. **Given** a task belonging to user A, **When** PUT /api/{user_B}/tasks/{task_id} is called (different user), **Then** status 404 is returned (cannot update other users' tasks).
 
-4. **Given** an update request with invalid data (empty title), **When** PUT /api/{user_id}/tasks/{id} is called, **Then** the system returns 422 Unprocessable Entity.
+4. **Given** an update request with empty title, **When** PUT /api/{user_id}/tasks/{id} is called, **Then** status 422 is returned with validation error.
 
 ---
 
 ### User Story 5 - Delete a Task (Priority: P2)
 
-As an API consumer, I want to delete a task so that I can remove completed or unwanted items from the list.
+As an API consumer, I want to delete a task so that I can remove tasks I no longer need.
 
-**Why this priority**: Deletion is important for list hygiene but not critical for initial value delivery.
+**Why this priority**: Deletion is important for task hygiene but is a destructive operation that is less frequently used than create/read.
 
-**Independent Test**: Can be tested by creating a task, deleting it, then verifying GET returns 404.
+**Independent Test**: Can be tested by creating a task, deleting it, then attempting to retrieve it and confirming 404.
 
 **Acceptance Scenarios**:
 
-1. **Given** an existing task, **When** DELETE /api/{user_id}/tasks/{id} is called, **Then** the system returns 204 No Content and the task is permanently removed.
+1. **Given** a valid user_id and existing task_id, **When** DELETE /api/{user_id}/tasks/{id} is called, **Then** status 204 is returned with no content.
 
-2. **Given** a task that doesn't exist, **When** DELETE /api/{user_id}/tasks/{id} is called, **Then** the system returns 404 Not Found.
+2. **Given** a valid user_id and non-existent task_id, **When** DELETE /api/{user_id}/tasks/{id} is called, **Then** status 404 is returned.
 
-3. **Given** a task belonging to another user, **When** DELETE /api/{user_id}/tasks/{id} is called, **Then** the system returns 404 Not Found (cross-user deletion prevented).
+3. **Given** a task belonging to user A, **When** DELETE /api/{user_B}/tasks/{task_id} is called (different user), **Then** status 404 is returned (cannot delete other users' tasks).
+
+4. **Given** a deleted task_id, **When** GET /api/{user_id}/tasks/{id} is called, **Then** status 404 is returned (task no longer exists).
 
 ---
 
-### User Story 6 - Mark Task as Complete (Priority: P3)
+### User Story 6 - Mark a Task as Complete (Priority: P3)
 
-As an API consumer, I want to mark a task as complete so that I can track my progress.
+As an API consumer, I want to mark a task as completed so that I can track my progress.
 
-**Why this priority**: Completion tracking is a core todo feature but can be simulated via PUT initially. Dedicated endpoint provides cleaner semantics.
+**Why this priority**: Completion tracking is the final piece of basic todo functionality, valuable but not blocking for initial usability.
 
-**Independent Test**: Can be tested by creating a task, completing it, then verifying the completed flag is true.
+**Independent Test**: Can be tested by creating a task (is_completed=false), calling PATCH complete, then retrieving to verify is_completed=true.
 
 **Acceptance Scenarios**:
 
-1. **Given** an incomplete task, **When** PATCH /api/{user_id}/tasks/{id}/complete is called, **Then** the system returns 200 OK with the task showing completed=true and completed_at timestamp.
+1. **Given** a valid user_id and existing incomplete task_id, **When** PATCH /api/{user_id}/tasks/{id}/complete is called, **Then** status 200 is returned with the task showing is_completed=true.
 
-2. **Given** an already complete task, **When** PATCH /api/{user_id}/tasks/{id}/complete is called, **Then** the system returns 200 OK (idempotent operation) with existing completed state.
+2. **Given** a valid user_id and already completed task_id, **When** PATCH /api/{user_id}/tasks/{id}/complete is called, **Then** status 200 is returned (idempotent operation, task remains completed).
 
-3. **Given** a task that doesn't exist, **When** PATCH /api/{user_id}/tasks/{id}/complete is called, **Then** the system returns 404 Not Found.
+3. **Given** a valid user_id and non-existent task_id, **When** PATCH /api/{user_id}/tasks/{id}/complete is called, **Then** status 404 is returned.
 
-4. **Given** a task belonging to another user, **When** PATCH /api/{user_id}/tasks/{id}/complete is called, **Then** the system returns 404 Not Found.
+4. **Given** a task belonging to user A, **When** PATCH /api/{user_B}/tasks/{task_id}/complete is called, **Then** status 404 is returned (cannot complete other users' tasks).
 
 ---
 
 ### Edge Cases
 
-- What happens when user_id in URL is not a valid format? System returns 422 Unprocessable Entity with validation error.
-- What happens when task_id in URL is not a valid format? System returns 422 Unprocessable Entity with validation error.
-- What happens when request body is malformed JSON? System returns 422 Unprocessable Entity with parse error.
-- What happens when title exceeds maximum length (255 characters)? System returns 422 with validation error.
-- What happens when description exceeds maximum length (2000 characters)? System returns 422 with validation error.
-- What happens when database connection fails? System returns 503 Service Unavailable.
-- What happens on concurrent updates to the same task? Last write wins (no optimistic locking in this version).
+- **Empty user_id**: Requests with empty or malformed user_id return 422 validation error
+- **Invalid task ID format**: Non-integer task IDs return 422 validation error
+- **Maximum title length**: Titles exceeding 500 characters are rejected with 422
+- **Concurrent updates**: Last write wins (no optimistic locking in this version)
+- **Database connection failure**: Returns 503 Service Unavailable with error message
+- **Large task lists**: System handles users with up to 10,000 tasks without timeout
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: System MUST provide a POST endpoint to create tasks scoped to a user_id
-- **FR-002**: System MUST provide a GET endpoint to list all tasks for a specific user_id
-- **FR-003**: System MUST provide a GET endpoint to retrieve a single task by user_id and task_id
-- **FR-004**: System MUST provide a PUT endpoint to update an existing task by user_id and task_id
-- **FR-005**: System MUST provide a DELETE endpoint to remove a task by user_id and task_id
-- **FR-006**: System MUST provide a PATCH endpoint to mark a task as complete by user_id and task_id
-- **FR-007**: System MUST persist all task data to the database (data survives server restart)
-- **FR-008**: System MUST scope all database queries by user_id (tasks never leak across users)
-- **FR-009**: System MUST validate required fields (title) and return 422 for invalid input
-- **FR-010**: System MUST return appropriate HTTP status codes (200, 201, 204, 404, 422, 503)
-- **FR-011**: System MUST accept and return JSON for all request/response bodies
-- **FR-012**: System MUST generate unique task IDs automatically on creation
-- **FR-013**: System MUST set created_at timestamp automatically on task creation
-- **FR-014**: System MUST set completed_at timestamp when a task is marked complete
-- **FR-015**: System MUST default completed field to false on task creation
-- **FR-016**: System MUST load database connection string from environment variables
+- **FR-001**: System MUST expose REST API endpoints for task CRUD operations at paths /api/{user_id}/tasks and /api/{user_id}/tasks/{id}
+- **FR-002**: System MUST expose a PATCH endpoint at /api/{user_id}/tasks/{id}/complete for marking tasks complete
+- **FR-003**: System MUST persist all task data to a PostgreSQL database
+- **FR-004**: System MUST scope all database queries by user_id to enforce data isolation
+- **FR-005**: System MUST return JSON responses with consistent structure for all endpoints
+- **FR-006**: System MUST validate that title is non-empty for task creation and updates
+- **FR-007**: System MUST auto-generate unique integer IDs for new tasks
+- **FR-008**: System MUST auto-generate created_at timestamp on task creation
+- **FR-009**: System MUST set is_completed to false by default for new tasks
+- **FR-010**: System MUST read database connection configuration from environment variables
+- **FR-011**: System MUST return appropriate HTTP status codes (200, 201, 204, 404, 422, 503)
+- **FR-012**: System MUST return 404 when accessing tasks that don't exist OR belong to a different user
+- **FR-013**: System MUST support task description as an optional field (nullable)
 
 ### Key Entities
 
-- **Task**: Represents a todo item belonging to a user
-  - id: Unique identifier (UUID format)
-  - user_id: Owner identifier (string, provided in URL path)
-  - title: Task title (required, 1-255 characters)
-  - description: Optional task details (0-2000 characters)
-  - completed: Boolean completion status (default: false)
-  - created_at: Timestamp of task creation (auto-generated)
-  - completed_at: Timestamp of completion (null until completed)
+- **Task**: Represents a todo item. Attributes: id (unique identifier), user_id (owner identifier), title (required, non-empty string, max 500 chars), description (optional string), is_completed (boolean, defaults to false), created_at (timestamp, auto-generated)
 
 ### Assumptions
 
-- user_id is provided as a path parameter and treated as a string identifier
-- No authentication/authorization is implemented in this spec (prepared for future JWT integration)
-- Task IDs are UUIDs generated server-side
-- All timestamps are stored and returned in ISO 8601 format (UTC)
-- Maximum title length: 255 characters
-- Maximum description length: 2000 characters
-- Empty string titles are invalid (whitespace-only also invalid)
-- The complete endpoint is idempotent (calling twice has same effect as once)
-- No pagination, filtering, or sorting in list endpoint (full list returned)
+- user_id is provided by the API consumer (will be replaced by JWT-extracted user ID in future auth layer)
+- user_id is a string identifier (UUID format expected but not strictly validated in this phase)
+- Task IDs are sequential integers within the database
+- No pagination required (future enhancement)
+- No sorting/filtering required (future enhancement)
+- Database schema migrations will be handled manually or via SQLModel create_all
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: All six API endpoints respond correctly to valid requests (100% of acceptance scenarios pass)
-- **SC-002**: Task data persists across server restarts (verified by create, restart, retrieve cycle)
-- **SC-003**: User A cannot access, modify, or delete User B's tasks under any circumstance (0% cross-user data leakage)
-- **SC-004**: Invalid requests receive appropriate error responses with clear messages (100% of edge cases handled)
-- **SC-005**: API responses return within 500ms for individual operations under normal load
-- **SC-006**: Backend runs independently without requiring frontend components
-- **SC-007**: All API responses follow consistent JSON structure with appropriate HTTP status codes
+- **SC-001**: All 6 API endpoints respond correctly to valid requests within 500ms under normal load
+- **SC-002**: Task data persists across server restarts (verified by creating task, restarting server, retrieving task)
+- **SC-003**: User A cannot access, modify, or delete User B's tasks (100% isolation verified by cross-user test cases)
+- **SC-004**: API returns consistent JSON response structure for all success and error cases
+- **SC-005**: Server starts successfully with only DATABASE_URL environment variable configured
+- **SC-006**: All acceptance scenarios pass when tested via HTTP client (curl, Postman, or automated tests)
+- **SC-007**: System handles 100 concurrent requests without errors or data corruption
 
-## Scope Boundaries
+## Out of Scope
 
-### In Scope
+The following are explicitly NOT included in this specification:
 
-- Six REST API endpoints for task CRUD and completion
-- Task data model with all specified fields
-- Database persistence to Neon PostgreSQL via SQLModel
-- User-scoped data isolation at query level
-- Input validation with meaningful error messages
-- Environment-based configuration
-
-### Out of Scope (Explicitly Excluded)
-
-- Authentication or authorization logic
-- JWT validation or middleware
-- Frontend UI or API client
-- Rate limiting or caching
+- Authentication/authorization (JWT validation, middleware)
+- Frontend UI or API client implementation
+- Rate limiting or request throttling
+- Caching layers
 - Advanced filtering, pagination, or search
-- Task due dates, priorities, or categories
-- Soft delete (tasks are hard deleted)
+- Soft delete functionality
+- Task due dates or priority fields
+- Task categories or tags
 - Audit logging
-- Batch operations (bulk create/update/delete)
+- API versioning

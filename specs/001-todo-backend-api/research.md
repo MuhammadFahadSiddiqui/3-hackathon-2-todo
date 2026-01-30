@@ -1,177 +1,188 @@
 # Research: Core Todo Backend API & Database Layer
 
-**Feature**: 001-todo-backend-api
-**Date**: 2026-01-09
+**Feature Branch**: `001-todo-backend-api`
+**Date**: 2026-01-10
 **Status**: Complete
 
-## Research Questions
+## Overview
 
-### 1. FastAPI + SQLModel Best Practices for Async PostgreSQL
+This document captures research findings and technical decisions for implementing the Todo Backend API using FastAPI, SQLModel, and Neon PostgreSQL.
 
-**Decision**: Use SQLModel with async SQLAlchemy engine and asyncpg driver
+## Research Topics
+
+### 1. FastAPI Project Structure
+
+**Decision**: Use a flat app-based structure optimized for single-feature backends
 
 **Rationale**:
-- SQLModel is built on SQLAlchemy 2.0 which has first-class async support
-- asyncpg is the fastest PostgreSQL driver for Python async
-- Neon Serverless PostgreSQL works well with connection pooling via asyncpg
-- FastAPI's dependency injection integrates cleanly with async session management
+- FastAPI convention uses `app/` directory as main package
+- Separating models, routes, and schemas provides clear responsibility boundaries
+- Single `main.py` entry point simplifies deployment and testing
 
 **Alternatives Considered**:
-| Alternative | Why Rejected |
-|-------------|--------------|
-| Sync psycopg2 | Blocks event loop; poor concurrency under load |
-| Databases library | Less integration with SQLModel; extra abstraction layer |
-| Tortoise ORM | Not compatible with SQLModel; would require rewrite |
+- Domain-driven design (DDD) structure - Rejected: overkill for CRUD API
+- Single-file approach - Rejected: poor maintainability as features grow
 
-**Implementation Pattern**:
+**Chosen Structure**:
+```
+backend/
+├── app/
+│   ├── __init__.py
+│   ├── main.py           # FastAPI app entry point
+│   ├── config.py         # Environment configuration
+│   ├── database.py       # SQLModel engine and session
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── task.py       # Task SQLModel
+│   ├── schemas/
+│   │   ├── __init__.py
+│   │   └── task.py       # Pydantic request/response schemas
+│   └── routes/
+│       ├── __init__.py
+│       └── tasks.py      # Task CRUD endpoints
+├── requirements.txt
+├── .env.example
+└── README.md
+```
+
+### 2. SQLModel with Neon PostgreSQL
+
+**Decision**: Use synchronous SQLModel with psycopg2 driver
+
+**Rationale**:
+- SQLModel provides unified Pydantic + SQLAlchemy models
+- Neon PostgreSQL supports standard PostgreSQL connections
+- Synchronous approach is simpler and sufficient for this use case
+- FastAPI handles concurrency at the request level
+
+**Alternatives Considered**:
+- Async SQLAlchemy with asyncpg - Rejected: adds complexity without clear benefit for this scale
+- Raw SQL with psycopg2 - Rejected: loses type safety and ORM benefits
+
+**Connection Pattern**:
 ```python
-# Async engine creation
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlmodel import SQLModel
+# Use DATABASE_URL from environment
+# Format: postgresql://user:pass@host:port/dbname?sslmode=require
+```
 
-engine = create_async_engine(DATABASE_URL, echo=False, future=True)
+### 3. Session Management
 
-# Session dependency
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    async with AsyncSession(engine) as session:
+**Decision**: Use FastAPI dependency injection with `yield` pattern
+
+**Rationale**:
+- Ensures proper session cleanup after each request
+- Integrates cleanly with FastAPI's dependency system
+- Provides automatic rollback on exceptions
+
+**Pattern**:
+```python
+def get_session():
+    with Session(engine) as session:
         yield session
 ```
 
-### 2. Neon PostgreSQL Connection String Format
+### 4. User Isolation Strategy
 
-**Decision**: Use `postgresql+asyncpg://` scheme with SSL required
-
-**Rationale**:
-- Neon requires SSL connections by default
-- asyncpg driver specified in connection string for async support
-- Connection pooling handled by Neon's serverless proxy
-
-**Connection String Format**:
-```
-postgresql+asyncpg://{user}:{password}@{host}/{database}?sslmode=require
-```
-
-**Environment Variable**: `DATABASE_URL`
-
-**Alternatives Considered**:
-| Alternative | Why Rejected |
-|-------------|--------------|
-| psycopg2 scheme | Not async-compatible |
-| No SSL | Neon requires SSL; connections would fail |
-
-### 3. UUID Generation Strategy
-
-**Decision**: Server-side UUID generation using Python's `uuid.uuid4()`
+**Decision**: Filter by user_id at query level in every database operation
 
 **Rationale**:
-- Consistent ID format across all tasks
-- No dependency on PostgreSQL uuid-ossp extension
-- Simpler migration path if database changes
-- UUIDs prevent enumeration attacks on task IDs
+- Constitution requires: "User data isolation MUST be enforced at the backend query level"
+- Returning 404 (not 403) prevents user enumeration attacks
+- Query-level filtering is more reliable than application-level checks
 
-**Alternatives Considered**:
-| Alternative | Why Rejected |
-|-------------|--------------|
-| Auto-increment integers | Predictable IDs enable enumeration |
-| PostgreSQL gen_random_uuid() | Adds extension dependency |
-| Client-provided IDs | Opens door to ID collision attacks |
-
-**Implementation**:
+**Pattern**:
 ```python
-from uuid import uuid4
-from sqlmodel import Field
-
-class Task(SQLModel, table=True):
-    id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
-```
-
-### 4. Request/Response Schema Separation
-
-**Decision**: Use separate Pydantic models for API schemas, distinct from SQLModel
-
-**Rationale**:
-- Prevents ORM internals (relationships, metadata) from leaking to API
-- Allows different validation rules for create vs update
-- Cleaner OpenAPI documentation
-- Easier to maintain API contract stability
-
-**Schema Structure**:
-```python
-# schemas/task.py
-class TaskCreate(BaseModel):
-    title: str = Field(..., min_length=1, max_length=255)
-    description: str | None = Field(None, max_length=2000)
-
-class TaskUpdate(BaseModel):
-    title: str = Field(..., min_length=1, max_length=255)
-    description: str | None = Field(None, max_length=2000)
-
-class TaskResponse(BaseModel):
-    id: str
-    user_id: str
-    title: str
-    description: str | None
-    completed: bool
-    created_at: datetime
-    completed_at: datetime | None
+# Every query includes user_id filter
+statement = select(Task).where(Task.user_id == user_id, Task.id == task_id)
 ```
 
 ### 5. Error Response Format
 
-**Decision**: Use consistent JSON error format with detail field
+**Decision**: Use consistent JSON error structure
 
 **Rationale**:
-- Matches FastAPI's default HTTPException format
-- Easy for clients to parse
-- Consistent across all error types
+- Constitution requires: "API returns consistent JSON response structure"
+- FastAPI's HTTPException provides this by default
+- Custom exception handlers can extend for specific cases
 
 **Format**:
 ```json
 {
-    "detail": "Task not found"
+  "detail": "Task not found"
 }
 ```
 
-**HTTP Status Codes**:
-| Status | Usage |
-|--------|-------|
-| 200 | Successful GET, PUT, PATCH |
-| 201 | Successful POST (created) |
-| 204 | Successful DELETE (no content) |
-| 404 | Resource not found or cross-user access |
-| 422 | Validation error (invalid input) |
-| 503 | Database unavailable |
+### 6. Input Validation
 
-### 6. User Isolation Query Pattern
-
-**Decision**: Include user_id in all WHERE clauses; return 404 for cross-user access
+**Decision**: Use Pydantic models with custom validators
 
 **Rationale**:
-- Constitution requires query-level isolation (Principle IV)
-- 404 prevents information leakage (attacker can't distinguish "doesn't exist" from "belongs to another user")
-- Simpler than checking ownership separately and returning 403
+- FastAPI automatically validates request bodies against Pydantic schemas
+- Returns 422 with detailed validation errors
+- Supports custom validators for business rules (e.g., non-empty title)
 
-**Implementation Pattern**:
+**Validation Rules**:
+- `title`: Required, non-empty after strip, max 500 characters
+- `description`: Optional, nullable
+- `user_id`: Required path parameter (string)
+- `task_id`: Required path parameter (integer)
+
+### 7. ID Generation
+
+**Decision**: Use PostgreSQL SERIAL (auto-increment) for task IDs
+
+**Rationale**:
+- Spec requires: "System MUST auto-generate unique integer IDs"
+- PostgreSQL SERIAL is simple and reliable
+- No need for UUIDs since tasks are scoped by user
+
+### 8. Timestamp Handling
+
+**Decision**: Use `server_default` for created_at with UTC timezone
+
+**Rationale**:
+- Spec requires: "System MUST auto-generate created_at timestamp"
+- Server-side default ensures consistency
+- UTC avoids timezone confusion
+
+**Pattern**:
 ```python
-async def get_task(session: AsyncSession, user_id: str, task_id: str) -> Task | None:
-    statement = select(Task).where(Task.user_id == user_id, Task.id == task_id)
-    result = await session.execute(statement)
-    return result.scalar_one_or_none()
+created_at: datetime = Field(
+    default_factory=datetime.utcnow,
+    sa_column_kwargs={"server_default": func.now()}
+)
 ```
 
-## Dependencies Finalized
+## Technology Versions
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| fastapi | >=0.109.0 | Web framework |
-| sqlmodel | >=0.0.14 | ORM with Pydantic integration |
-| uvicorn | >=0.27.0 | ASGI server |
-| asyncpg | >=0.29.0 | Async PostgreSQL driver |
-| python-dotenv | >=1.0.0 | Environment variable loading |
-| httpx | >=0.26.0 | Async HTTP client for testing |
-| pytest | >=8.0.0 | Testing framework |
-| pytest-asyncio | >=0.23.0 | Async test support |
+| Component | Version | Notes |
+|-----------|---------|-------|
+| Python | 3.11+ | Required for modern type hints |
+| FastAPI | 0.109+ | Latest stable |
+| SQLModel | 0.0.16+ | Latest stable |
+| Pydantic | 2.x | Via SQLModel |
+| psycopg2-binary | 2.9+ | PostgreSQL driver |
+| python-dotenv | 1.0+ | Environment loading |
+| uvicorn | 0.27+ | ASGI server |
 
-## Open Questions Resolved
+## Security Considerations
 
-All technical questions resolved. No blockers for implementation.
+1. **No Auth in This Phase**: Authentication is explicitly out of scope per spec
+2. **SQL Injection Prevention**: SQLModel/SQLAlchemy parameterizes all queries
+3. **Environment Variables**: DATABASE_URL must never be hardcoded
+4. **SSL Required**: Neon requires SSL connections (`sslmode=require`)
+
+## Performance Considerations
+
+1. **Connection Pooling**: SQLModel's default pool is sufficient for initial scale
+2. **Query Efficiency**: Single-table queries with indexed user_id
+3. **Response Time**: Target <500ms per spec SC-001
+
+## Open Questions (Resolved)
+
+| Question | Resolution |
+|----------|------------|
+| Async vs Sync? | Sync - simpler, sufficient for scale |
+| UUID vs Integer IDs? | Integer - spec requires, simpler |
+| Soft delete? | No - explicitly out of scope |
+| updated_at field? | Yes - useful for debugging, low cost |

@@ -208,3 +208,12 @@ Wait for consent; never auto-create ADRs. Group related decisions (stacks, authe
 
 ## Code Standards
 See `.specify/memory/constitution.md` for code quality, testing, performance, security, and architecture principles.
+
+## Active Technologies
+- Python 3.11+ (backend), TypeScript/Next.js 16+ (frontend) + FastAPI, PyJWT[crypto], Better Auth (Next.js) (002-jwt-auth)
+- Neon Serverless PostgreSQL (existing), User table addition (002-jwt-auth)
+- TypeScript/Next.js 16+ (App Router) + React 18+, Better Auth (existing), Tailwind CSS (003-todo-frontend)
+- localStorage (token), React state (UI) (003-todo-frontend)
+
+## Recent Changes
+- 002-jwt-auth: Added Python 3.11+ (backend), TypeScript/Next.js 16+ (frontend) + FastAPI, PyJWT[crypto], Better Auth (Next.js)
