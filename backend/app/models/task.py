@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional
+from uuid import UUID, uuid4
 from sqlmodel import Field, SQLModel
 
 
@@ -8,14 +9,14 @@ class Task(SQLModel, table=True):
 
     __tablename__ = "tasks"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: str = Field(index=True, max_length=36)
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(index=True)
     title: str = Field(max_length=500)
     description: Optional[str] = Field(default=None)
     is_completed: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    # Reminder fields (column names match database)
-    deadline_at: Optional[datetime] = Field(default=None, sa_column_kwargs={"name": "deadline_at"})
+    # Reminder fields
+    deadline_at: Optional[datetime] = Field(default=None)
     reminder_interval_minutes: Optional[int] = Field(default=None)
-    last_reminded_at: Optional[datetime] = Field(default=None, sa_column_kwargs={"name": "last_reminded_at"})
+    last_reminded_at: Optional[datetime] = Field(default=None)

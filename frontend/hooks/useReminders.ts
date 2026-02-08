@@ -6,11 +6,16 @@ import { useNotifications } from "./useNotifications";
 
 const POLL_INTERVAL = 60000; // Check every 60 seconds
 
+export interface UseRemindersOptions {
+  /** Only poll when enabled (e.g., after authentication) */
+  enabled?: boolean;
+}
+
 export interface UseRemindersReturn {
   reminders: Task[];
   notificationPermission: NotificationPermission | "default";
   enableNotifications: () => Promise<void>;
-  dismissReminder: (taskId: number) => Promise<void>;
+  dismissReminder: (taskId: string) => Promise<void>;
   dismissAllReminders: () => Promise<void>;
   refreshReminders: () => Promise<Task[]>;
 }
@@ -19,10 +24,11 @@ export interface UseRemindersReturn {
  * Hook for managing task reminders with browser notifications.
  * Polls for due reminders and shows system notifications.
  */
-export function useReminders(): UseRemindersReturn {
+export function useReminders(options: UseRemindersOptions = {}): UseRemindersReturn {
+  const { enabled = true } = options;
   const [reminders, setReminders] = useState<Task[]>([]);
   const { permission, requestPermission, showNotification, isSupported } = useNotifications();
-  const notifiedTasksRef = useRef<Set<number>>(new Set());
+  const notifiedTasksRef = useRef<Set<string>>(new Set());
   const isPollingRef = useRef(false);
 
   /**
@@ -33,7 +39,11 @@ export function useReminders(): UseRemindersReturn {
       const data = await tasksApi.getDueReminders();
       return data;
     } catch (error) {
-      console.error("Failed to fetch reminders:", error);
+      // Silently handle auth errors (401) - user may not be logged in yet
+      const err = error as Error & { status?: number };
+      if (err.status !== 401) {
+        console.error("Failed to fetch reminders:", error);
+      }
       return [];
     }
   }, []);
@@ -93,7 +103,7 @@ export function useReminders(): UseRemindersReturn {
   /**
    * Dismiss a single reminder.
    */
-  const dismissReminder = useCallback(async (taskId: number) => {
+  const dismissReminder = useCallback(async (taskId: string) => {
     try {
       await tasksApi.acknowledgeReminder(taskId);
       setReminders((prev) => prev.filter((r) => r.id !== taskId));
@@ -117,8 +127,13 @@ export function useReminders(): UseRemindersReturn {
     }
   }, [reminders]);
 
-  // Start polling for reminders
+  // Start polling for reminders only when enabled
   useEffect(() => {
+    if (!enabled) {
+      isPollingRef.current = false;
+      return;
+    }
+
     if (isPollingRef.current) return;
     isPollingRef.current = true;
 
@@ -134,7 +149,7 @@ export function useReminders(): UseRemindersReturn {
       clearInterval(interval);
       isPollingRef.current = false;
     };
-  }, [refreshReminders]);
+  }, [enabled, refreshReminders]);
 
   // Listen for visibility changes to refresh when tab becomes visible
   useEffect(() => {

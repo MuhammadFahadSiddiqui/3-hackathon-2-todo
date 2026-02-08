@@ -7,11 +7,11 @@ import { Task } from "@/lib/api";
 interface TaskItemProps {
   task: Task;
   isEditing: boolean;
-  onEdit: (id: number) => void;
-  onSave: (id: number, title: string) => Promise<void>;
+  onEdit: (id: string) => void;
+  onSave: (id: string, title: string) => Promise<void>;
   onCancel: () => void;
-  onToggleStatus: (id: number) => Promise<void>;
-  onDelete: (id: number) => Promise<void>;
+  onToggleStatus: (id: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 }
 
 export function TaskItem({

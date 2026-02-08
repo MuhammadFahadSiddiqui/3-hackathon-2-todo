@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import List
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 from app.auth import get_current_user, UserContext
@@ -21,7 +22,7 @@ def create_task(
     # Check for duplicate title for the same user
     existing_task = session.exec(
         select(Task).where(
-            Task.user_id == current_user.id,
+            Task.user_id == UUID(current_user.id),
             Task.title == task_data.title
         )
     ).first()
@@ -32,7 +33,7 @@ def create_task(
         )
 
     task = Task(
-        user_id=current_user.id,  # Use authenticated user ID from token
+        user_id=UUID(current_user.id),  # Use authenticated user ID from token
         title=task_data.title,
         description=task_data.description,
         is_completed=False,
@@ -53,7 +54,7 @@ def list_tasks(
     session: Session = Depends(get_session),
 ) -> List[Task]:
     """List all tasks for the authenticated user."""
-    statement = select(Task).where(Task.user_id == current_user.id)
+    statement = select(Task).where(Task.user_id == UUID(current_user.id))
     tasks = session.exec(statement).all()
     return list(tasks)
 
@@ -68,7 +69,7 @@ def get_due_reminders(
 
     # Get pending tasks with reminder settings
     statement = select(Task).where(
-        Task.user_id == current_user.id,
+        Task.user_id == UUID(current_user.id),
         Task.is_completed == False,
         Task.reminder_interval_minutes != None,
     )
@@ -93,13 +94,13 @@ def get_due_reminders(
 
 @router.get("/{task_id}", response_model=TaskResponse)
 def get_task(
-    task_id: int,
+    task_id: UUID,
     current_user: UserContext = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> Task:
     """Get a specific task by ID for the authenticated user."""
     statement = select(Task).where(
-        Task.id == task_id, Task.user_id == current_user.id
+        Task.id == task_id, Task.user_id == UUID(current_user.id)
     )
     task = session.exec(statement).first()
     if not task:
@@ -112,14 +113,14 @@ def get_task(
 
 @router.put("/{task_id}", response_model=TaskResponse)
 def update_task(
-    task_id: int,
+    task_id: UUID,
     task_data: TaskUpdate,
     current_user: UserContext = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> Task:
     """Update an existing task for the authenticated user."""
     statement = select(Task).where(
-        Task.id == task_id, Task.user_id == current_user.id
+        Task.id == task_id, Task.user_id == UUID(current_user.id)
     )
     task = session.exec(statement).first()
     if not task:
@@ -140,13 +141,13 @@ def update_task(
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task(
-    task_id: int,
+    task_id: UUID,
     current_user: UserContext = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> None:
     """Delete a task for the authenticated user."""
     statement = select(Task).where(
-        Task.id == task_id, Task.user_id == current_user.id
+        Task.id == task_id, Task.user_id == UUID(current_user.id)
     )
     task = session.exec(statement).first()
     if not task:
@@ -160,13 +161,13 @@ def delete_task(
 
 @router.patch("/{task_id}/complete", response_model=TaskResponse)
 def complete_task(
-    task_id: int,
+    task_id: UUID,
     current_user: UserContext = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> Task:
     """Mark a task as completed for the authenticated user."""
     statement = select(Task).where(
-        Task.id == task_id, Task.user_id == current_user.id
+        Task.id == task_id, Task.user_id == UUID(current_user.id)
     )
     task = session.exec(statement).first()
     if not task:
@@ -184,13 +185,13 @@ def complete_task(
 
 @router.patch("/{task_id}/toggle-status", response_model=TaskResponse)
 def toggle_task_status(
-    task_id: int,
+    task_id: UUID,
     current_user: UserContext = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> Task:
     """Toggle task completion status for the authenticated user."""
     statement = select(Task).where(
-        Task.id == task_id, Task.user_id == current_user.id
+        Task.id == task_id, Task.user_id == UUID(current_user.id)
     )
     task = session.exec(statement).first()
     if not task:
@@ -208,13 +209,13 @@ def toggle_task_status(
 
 @router.patch("/{task_id}/acknowledge-reminder", response_model=TaskResponse)
 def acknowledge_reminder(
-    task_id: int,
+    task_id: UUID,
     current_user: UserContext = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> Task:
     """Mark a task's reminder as acknowledged to prevent spamming."""
     statement = select(Task).where(
-        Task.id == task_id, Task.user_id == current_user.id
+        Task.id == task_id, Task.user_id == UUID(current_user.id)
     )
     task = session.exec(statement).first()
     if not task:

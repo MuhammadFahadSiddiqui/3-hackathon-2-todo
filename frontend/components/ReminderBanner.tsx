@@ -4,7 +4,7 @@ import { Task } from "@/lib/api";
 
 interface ReminderBannerProps {
   reminders: Task[];
-  onDismiss: (taskId: number) => void;
+  onDismiss: (taskId: string) => void;
   onDismissAll: () => void;
   notificationPermission?: NotificationPermission | "default";
   onEnableNotifications?: () => void;

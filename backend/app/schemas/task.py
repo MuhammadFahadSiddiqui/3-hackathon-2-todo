@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional
+from uuid import UUID
 from pydantic import BaseModel, field_validator
 
 
@@ -56,8 +57,8 @@ class TaskUpdate(BaseModel):
 class TaskResponse(BaseModel):
     """Schema for task response."""
 
-    id: int
-    user_id: str
+    id: UUID
+    user_id: UUID
     title: str
     description: Optional[str]
     is_completed: bool

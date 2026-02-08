@@ -1,5 +1,6 @@
 """MCP Tool definitions for task CRUD operations."""
 from typing import Dict, Any, Optional
+from uuid import UUID
 from sqlmodel import Session, select
 from app.models.task import Task
 from datetime import datetime
@@ -123,7 +124,7 @@ TASK_TOOLS = [
 def find_task_by_title(session: Session, user_id: str, title_search: str) -> Optional[Task]:
     """Find a task by partial title match."""
     statement = select(Task).where(
-        Task.user_id == user_id,
+        Task.user_id == UUID(user_id),
         Task.title.ilike(f"%{title_search}%")
     )
     return session.exec(statement).first()
@@ -136,23 +137,40 @@ def execute_add_task(
     description: Optional[str] = None
 ) -> Dict[str, Any]:
     """Create a new task."""
-    task = Task(
-        user_id=user_id,
-        title=title,
-        description=description or ""
-    )
-    session.add(task)
-    session.commit()
-    session.refresh(task)
-    return {
-        "success": True,
-        "task": {
-            "id": task.id,
-            "title": task.title,
-            "description": task.description,
-            "is_completed": task.is_completed
+    # Check for duplicate title
+    existing = session.exec(
+        select(Task).where(
+            Task.user_id == UUID(user_id),
+            Task.title == title
+        )
+    ).first()
+    if existing:
+        return {
+            "success": False,
+            "error": f"A task with title '{title}' already exists"
         }
-    }
+
+    try:
+        task = Task(
+            user_id=UUID(user_id),
+            title=title,
+            description=description or ""
+        )
+        session.add(task)
+        session.commit()
+        session.refresh(task)
+        return {
+            "success": True,
+            "task": {
+                "id": str(task.id),
+                "title": task.title,
+                "description": task.description,
+                "is_completed": task.is_completed
+            }
+        }
+    except Exception as e:
+        session.rollback()
+        return {"success": False, "error": str(e)}
 
 
 def execute_list_tasks(
@@ -161,7 +179,7 @@ def execute_list_tasks(
     status: str = "all"
 ) -> Dict[str, Any]:
     """Get user's tasks filtered by status."""
-    statement = select(Task).where(Task.user_id == user_id)
+    statement = select(Task).where(Task.user_id == UUID(user_id))
 
     if status == "pending":
         statement = statement.where(Task.is_completed == False)
@@ -176,7 +194,7 @@ def execute_list_tasks(
         "count": len(tasks),
         "tasks": [
             {
-                "id": t.id,
+                "id": str(t.id),
                 "title": t.title,
                 "description": t.description,
                 "is_completed": t.is_completed
@@ -189,14 +207,14 @@ def execute_list_tasks(
 def execute_complete_task(
     session: Session,
     user_id: str,
-    task_id: Optional[int] = None,
+    task_id: Optional[str] = None,
     title_search: Optional[str] = None
 ) -> Dict[str, Any]:
     """Mark a task as completed."""
     task = None
 
     if task_id:
-        statement = select(Task).where(Task.id == task_id, Task.user_id == user_id)
+        statement = select(Task).where(Task.id == UUID(task_id), Task.user_id == UUID(user_id))
         task = session.exec(statement).first()
     elif title_search:
         task = find_task_by_title(session, user_id, title_search)
@@ -216,7 +234,7 @@ def execute_complete_task(
     return {
         "success": True,
         "task": {
-            "id": task.id,
+            "id": str(task.id),
             "title": task.title,
             "is_completed": task.is_completed
         }
@@ -226,7 +244,7 @@ def execute_complete_task(
 def execute_update_task(
     session: Session,
     user_id: str,
-    task_id: Optional[int] = None,
+    task_id: Optional[str] = None,
     title_search: Optional[str] = None,
     new_title: Optional[str] = None,
     new_description: Optional[str] = None
@@ -235,7 +253,7 @@ def execute_update_task(
     task = None
 
     if task_id:
-        statement = select(Task).where(Task.id == task_id, Task.user_id == user_id)
+        statement = select(Task).where(Task.id == UUID(task_id), Task.user_id == UUID(user_id))
         task = session.exec(statement).first()
     elif title_search:
         task = find_task_by_title(session, user_id, title_search)
@@ -256,7 +274,7 @@ def execute_update_task(
     return {
         "success": True,
         "task": {
-            "id": task.id,
+            "id": str(task.id),
             "title": task.title,
             "description": task.description,
             "is_completed": task.is_completed
@@ -267,14 +285,14 @@ def execute_update_task(
 def execute_delete_task(
     session: Session,
     user_id: str,
-    task_id: Optional[int] = None,
+    task_id: Optional[str] = None,
     title_search: Optional[str] = None
 ) -> Dict[str, Any]:
     """Delete a task."""
     task = None
 
     if task_id:
-        statement = select(Task).where(Task.id == task_id, Task.user_id == user_id)
+        statement = select(Task).where(Task.id == UUID(task_id), Task.user_id == UUID(user_id))
         task = session.exec(statement).first()
     elif title_search:
         task = find_task_by_title(session, user_id, title_search)
@@ -283,13 +301,14 @@ def execute_delete_task(
         return {"success": False, "error": "Task not found"}
 
     deleted_title = task.title
+    deleted_id = str(task.id)
     session.delete(task)
     session.commit()
 
     return {
         "success": True,
         "deleted_task": {
-            "id": task.id,
+            "id": deleted_id,
             "title": deleted_title
         }
     }

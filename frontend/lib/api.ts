@@ -82,32 +82,32 @@ export const tasksApi = {
       body: JSON.stringify(data),
     }),
 
-  get: (id: number) => apiRequest<Task>(`/api/tasks/${id}`),
+  get: (id: string) => apiRequest<Task>(`/api/tasks/${id}`),
 
-  update: (id: number, data: TaskUpdateData) =>
+  update: (id: string, data: TaskUpdateData) =>
     apiRequest<Task>(`/api/tasks/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
-  delete: (id: number) =>
+  delete: (id: string) =>
     apiRequest<void>(`/api/tasks/${id}`, {
       method: "DELETE",
     }),
 
-  complete: (id: number) =>
+  complete: (id: string) =>
     apiRequest<Task>(`/api/tasks/${id}/complete`, {
       method: "PATCH",
     }),
 
-  toggleStatus: (id: number) =>
+  toggleStatus: (id: string) =>
     apiRequest<Task>(`/api/tasks/${id}/toggle-status`, {
       method: "PATCH",
     }),
 
   getDueReminders: () => apiRequest<Task[]>("/api/tasks/due-reminders"),
 
-  acknowledgeReminder: (id: number) =>
+  acknowledgeReminder: (id: string) =>
     apiRequest<Task>(`/api/tasks/${id}/acknowledge-reminder`, {
       method: "PATCH",
     }),
@@ -122,7 +122,7 @@ export const authApi = {
 
 // Type definitions
 export interface Task {
-  id: number;
+  id: string;
   user_id: string;
   title: string;
   description: string | null;

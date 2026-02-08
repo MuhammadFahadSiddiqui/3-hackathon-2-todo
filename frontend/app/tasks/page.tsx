@@ -25,9 +25,9 @@ export default function TasksPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Reminders with browser notifications
+  // Reminders with browser notifications (only poll when authenticated)
   const {
     reminders,
     notificationPermission,
@@ -35,7 +35,7 @@ export default function TasksPage() {
     dismissReminder,
     dismissAllReminders,
     refreshReminders,
-  } = useReminders();
+  } = useReminders({ enabled: isAuthenticated === true });
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -114,7 +114,7 @@ export default function TasksPage() {
   };
 
   // T027: Handle task update (for inline editing)
-  const handleSaveTask = async (id: number, title: string) => {
+  const handleSaveTask = async (id: string, title: string) => {
     const task = tasks.find((t) => t.id === id);
     try {
       const updated = await tasksApi.update(id, { title });
@@ -131,7 +131,7 @@ export default function TasksPage() {
   };
 
   // Toggle task status (pending ↔ completed)
-  const handleToggleStatus = async (id: number) => {
+  const handleToggleStatus = async (id: string) => {
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
 
@@ -152,7 +152,7 @@ export default function TasksPage() {
   };
 
   // T054: Delete with confirmation
-  const handleDeleteTask = async (id: number) => {
+  const handleDeleteTask = async (id: string) => {
     const task = tasks.find((t) => t.id === id);
     if (!confirm("Delete this task?")) return;
 
