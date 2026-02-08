@@ -8,7 +8,7 @@ export type HistoryAction = "created" | "updated" | "completed" | "uncompleted" 
 export interface HistoryEntry {
   id: string;
   action: HistoryAction;
-  taskId: number;
+  taskId: string;
   taskTitle: string;
   timestamp: string;
 }
@@ -34,7 +34,7 @@ export function getHistory(): HistoryEntry[] {
  */
 export function addHistoryEntry(
   action: HistoryAction,
-  taskId: number,
+  taskId: string,
   taskTitle: string
 ): void {
   if (typeof window === "undefined") return;
