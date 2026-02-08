@@ -10,6 +10,8 @@ import { TaskHistory } from "@/components/TaskHistory";
 import { ErrorBanner, getErrorMessage } from "@/components/ErrorBanner";
 import { ReminderBanner } from "@/components/ReminderBanner";
 import { addHistoryEntry } from "@/lib/task-history";
+import { ChatPanel } from "@/components/chat/ChatPanel";
+import { useReminders } from "@/hooks/useReminders";
 
 export default function TasksPage() {
   const router = useRouter();
@@ -25,8 +27,15 @@ export default function TasksPage() {
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  // Reminders state
-  const [reminders, setReminders] = useState<Task[]>([]);
+  // Reminders with browser notifications
+  const {
+    reminders,
+    notificationPermission,
+    enableNotifications,
+    dismissReminder,
+    dismissAllReminders,
+    refreshReminders,
+  } = useReminders();
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -41,11 +50,10 @@ export default function TasksPage() {
     }
   }, [isAuthenticated, router]);
 
-  // Load tasks and reminders
+  // Load tasks on auth
   useEffect(() => {
     if (isAuthenticated === true) {
       loadTasks();
-      loadReminders();
     }
   }, [isAuthenticated]);
 
@@ -60,23 +68,6 @@ export default function TasksPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const loadReminders = async () => {
-    try {
-      const data = await tasksApi.getDueReminders();
-      setReminders(data);
-    } catch (err) {
-      console.error("Failed to load reminders:", err);
-    }
-  };
-
-  const handleDismissReminder = (taskId: number) => {
-    setReminders(reminders.filter((r) => r.id !== taskId));
-  };
-
-  const handleDismissAllReminders = () => {
-    setReminders([]);
   };
 
   // Filter tasks based on search query
@@ -296,11 +287,13 @@ export default function TasksPage() {
           </div>
         )}
 
-        {/* Reminder notifications */}
+        {/* Reminder notifications with browser alerts */}
         <ReminderBanner
           reminders={reminders}
-          onDismiss={handleDismissReminder}
-          onDismissAll={handleDismissAllReminders}
+          onDismiss={dismissReminder}
+          onDismissAll={dismissAllReminders}
+          notificationPermission={notificationPermission}
+          onEnableNotifications={enableNotifications}
         />
 
         {/* Create task form */}
@@ -540,6 +533,9 @@ export default function TasksPage() {
         {/* Task History */}
         <TaskHistory refreshTrigger={historyRefresh} />
       </div>
+
+      {/* AI Chat Panel */}
+      <ChatPanel onTaskListRefresh={() => { loadTasks(); refreshReminders(); }} />
     </div>
   );
 }

@@ -1,0 +1,270 @@
+openapi: 3.0.3
+info:
+  title: Todo AI Chat API
+  description: AI-powered chatbot API for todo management using natural language
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+
+security:
+  - BearerAuth: []
+
+paths:
+  /api/chat:
+    post:
+      summary: Send a chat message
+      description: |
+        Sends a natural language message to the AI assistant. The assistant
+        interprets the intent and executes appropriate task operations
+        (add, list, complete, update, delete) using MCP tools.
+      operationId: sendChatMessage
+      tags:
+        - Chat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+            examples:
+              addTask:
+                summary: Add a task
+                value:
+                  message: "Add a task to buy groceries"
+              listTasks:
+                summary: List tasks
+                value:
+                  message: "What are my pending tasks?"
+              completeTask:
+                summary: Complete a task
+                value:
+                  message: "Mark the groceries task as done"
+      responses:
+        '200':
+          description: Chat response with AI message and optional tool calls
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+              examples:
+                taskAdded:
+                  summary: Task added confirmation
+                  value:
+                    message: "I've added \"Buy groceries\" to your task list!"
+                    tool_calls:
+                      - name: add_task
+                        arguments:
+                          title: "Buy groceries"
+                        result:
+                          success: true
+                          task:
+                            id: 5
+                            title: "Buy groceries"
+                            is_completed: false
+                taskListed:
+                  summary: Task list response
+                  value:
+                    message: "Here are your pending tasks:\n1. Buy groceries\n2. Finish report"
+                    tool_calls:
+                      - name: list_tasks
+                        arguments:
+                          status: "pending"
+                        result:
+                          tasks:
+                            - id: 5
+                              title: "Buy groceries"
+                              is_completed: false
+                            - id: 6
+                              title: "Finish report"
+                              is_completed: false
+        '400':
+          description: Invalid request (empty message)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Message cannot be empty"
+        '401':
+          description: Unauthorized (invalid or missing JWT)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Not authenticated"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "An error occurred processing your request"
+        '503':
+          description: AI service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "AI service is temporarily unavailable"
+
+  /api/chat/history:
+    get:
+      summary: Get conversation history
+      description: Retrieves the user's conversation history (last 50 messages)
+      operationId: getChatHistory
+      tags:
+        - Chat
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of messages to return
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Conversation history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationHistory'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/chat/clear:
+    delete:
+      summary: Clear conversation history
+      description: Deletes all messages in the user's conversation
+      operationId: clearChatHistory
+      tags:
+        - Chat
+      responses:
+        '204':
+          description: Conversation cleared successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from /api/auth/login
+
+  schemas:
+    ChatRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Natural language message from the user
+          minLength: 1
+          maxLength: 2000
+          example: "Add a task to buy groceries"
+
+    ChatResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: AI assistant's response message
+          example: "I've added \"Buy groceries\" to your task list!"
+        tool_calls:
+          type: array
+          description: List of tool calls executed (if any)
+          items:
+            $ref: '#/components/schemas/ToolCall'
+        conversation_id:
+          type: integer
+          description: ID of the conversation
+          example: 1
+
+    ToolCall:
+      type: object
+      required:
+        - name
+        - arguments
+      properties:
+        name:
+          type: string
+          description: Name of the MCP tool called
+          enum:
+            - add_task
+            - list_tasks
+            - complete_task
+            - update_task
+            - delete_task
+        arguments:
+          type: object
+          description: Arguments passed to the tool
+          additionalProperties: true
+        result:
+          type: object
+          description: Result from tool execution
+          additionalProperties: true
+
+    ConversationHistory:
+      type: object
+      properties:
+        conversation_id:
+          type: integer
+          example: 1
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryMessage'
+
+    HistoryMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        role:
+          type: string
+          enum:
+            - user
+            - assistant
+            - tool
+          example: "user"
+        content:
+          type: string
+          example: "Add a task to buy groceries"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-02-07T10:00:00Z"
+
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          description: Error message
+          example: "Not authenticated"
+
+tags:
+  - name: Chat
+    description: AI chatbot endpoints for natural language task management

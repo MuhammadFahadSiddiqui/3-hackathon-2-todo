@@ -1,23 +1,21 @@
 <!--
   SYNC IMPACT REPORT
   ====================
-  Version change: 0.0.0 → 1.0.0
+  Version change: 1.0.0 → 1.1.0
 
-  Modified principles: N/A (initial creation)
+  Modified principles: None (existing principles unchanged)
 
   Added sections:
-    - Core Principles (6 principles: Spec-Driven Development, Correctness Over Speed,
-      Security-First Design, Reproducibility, Maintainability, Traceability)
-    - Technology Constraints
-    - Security Requirements
-    - Governance
+    - Phase-III: AI Chatbot Requirements (new section after Security Requirements)
+    - Technology Constraints updated with OpenAI Agents SDK, MCP SDK, ChatKit
+    - Success Criteria updated to include Phase-III goals
 
-  Removed sections: N/A (initial creation)
+  Removed sections: None
 
   Templates requiring updates:
-    - .specify/templates/plan-template.md: ✅ Compatible (Constitution Check section exists)
-    - .specify/templates/spec-template.md: ✅ Compatible (Requirements section supports FR-XXX format)
-    - .specify/templates/tasks-template.md: ✅ Compatible (Phase structure supports security tasks)
+    - .specify/templates/plan-template.md: ✅ Compatible (no changes needed)
+    - .specify/templates/spec-template.md: ✅ Compatible (no changes needed)
+    - .specify/templates/tasks-template.md: ✅ Compatible (no changes needed)
 
   Follow-up TODOs: None
 -->
@@ -97,6 +95,9 @@ The following technology stack is MANDATED for this project:
 | Database       | Neon Serverless PostgreSQL     | Managed service            |
 | Authentication | Better Auth                    | JWT-based                  |
 | Spec Workflow  | Claude Code + Spec-Kit Plus    | Required tooling           |
+| AI Agent SDK   | OpenAI Agents SDK              | Phase-III (Spec-4)         |
+| MCP Server     | Official MCP SDK               | Phase-III (Spec-4)         |
+| Chat UI        | ChatKit                        | Phase-III (Spec-5)         |
 
 Deviations from this stack MUST be documented with explicit justification and approval.
 
@@ -122,6 +123,50 @@ Deviations from this stack MUST be documented with explicit justification and ap
 - Passwords MUST never be stored in plaintext
 - Secrets MUST be managed via environment variables
 - Audit logging MUST capture security-relevant events
+
+## Phase-III: AI Chatbot Requirements
+
+Phase-III introduces a Todo AI Chatbot. This phase MUST be developed using the
+Agentic Dev Stack workflow exclusively: Spec → Plan → Tasks → Implementation.
+No manual coding is permitted.
+
+### Specification Structure
+
+Phase-III is divided into two specifications:
+
+- **Spec-4**: Todo AI Backend & MCP
+- **Spec-5**: Chat UI & Conversational UX
+
+### Spec-4: Todo AI Backend & MCP
+
+The AI backend MUST adhere to the following requirements:
+
+- Implement FastAPI backend with OpenAI Agents SDK
+- Build MCP server using Official MCP SDK
+- Expose stateless MCP tools for task CRUD operations:
+  - add, list, update, complete, delete
+- Persist all state (tasks, conversations, messages) in Neon PostgreSQL using SQLModel
+- Provide stateless chat API: `POST /api/{user_id}/chat`
+- Agent MUST select and call MCP tools based on natural language input
+- Server MUST hold no in-memory state (fully stateless architecture)
+- Handle errors gracefully and confirm actions in responses
+
+### Spec-5: Chat UI & Conversational UX
+
+The chat interface MUST adhere to the following requirements:
+
+- Build ChatKit-based frontend for conversational interaction
+- Connect UI to the chat API endpoint (`POST /api/{user_id}/chat`)
+- Maintain conversation continuity via database persistence
+- Display friendly confirmations and error messages
+- Ensure authenticated, user-scoped interactions only (no cross-user access)
+
+### Phase-III Constraints
+
+- MUST follow existing Phase-I and Phase-II architecture patterns
+- MUST NOT duplicate previously implemented features
+- Optimize for minimal token usage in AI interactions
+- Prefer clarity, correctness, and modular design
 
 ## Governance
 
@@ -149,6 +194,7 @@ Deviations from this stack MUST be documented with explicit justification and ap
 
 This project is considered successful when:
 
+**Phase-I & II (Core Todo Application)**:
 - All 5 basic Todo features are implemented as a web application
 - Multi-user system is fully functional with persistent storage
 - JWT-based authentication works across frontend and backend
@@ -156,4 +202,12 @@ This project is considered successful when:
 - Backend passes auth and ownership enforcement review
 - Frontend successfully integrates auth and secured APIs
 
-**Version**: 1.0.0 | **Ratified**: 2026-01-10 | **Last Amended**: 2026-01-10
+**Phase-III (AI Chatbot)**:
+- AI agent can perform task CRUD via natural language commands
+- MCP server exposes stateless tools for all task operations
+- Chat API is fully stateless with database-persisted state
+- Conversation history is maintained per user in the database
+- ChatKit UI provides intuitive conversational experience
+- All interactions are authenticated and user-scoped
+
+**Version**: 1.1.0 | **Ratified**: 2026-01-10 | **Last Amended**: 2026-02-07

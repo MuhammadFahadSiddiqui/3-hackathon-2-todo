@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.database import create_db_and_tables
-from app.routes import auth, tasks, auth_routes
+from app.routes import auth, tasks, auth_routes, chat
 
 
 @asynccontextmanager
@@ -43,6 +43,7 @@ app.add_middleware(
 app.include_router(tasks.router)
 app.include_router(auth.router)
 app.include_router(auth_routes.router)
+app.include_router(chat.router)
 
 
 @app.get("/")
